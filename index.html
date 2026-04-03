@@ -375,7 +375,7 @@ body {
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-top">
-    <div class="logo">NAD <em>BID</em></div>
+    <div class="logo">ADnaver <em>dal.pado</em></div>
     <div class="conn-pill" id="connPill"><span class="dot"></span><span id="connText">미연결</span></div>
   </div>
   <div class="tabs">
@@ -434,6 +434,8 @@ body {
       <button class="rank-tab on" id="rtab-today" onclick="switchReportDate('today')">오늘</button>
       <button class="rank-tab" id="rtab-yesterday" onclick="switchReportDate('yesterday')">어제</button>
       <button class="rank-tab" id="rtab-month" onclick="switchReportDate('month')">이번달</button>
+      <button class="rank-tab" id="rtab-lastmonth" onclick="switchReportDate('lastmonth')">지난달</button>
+      <button class="rank-tab" id="rtab-lastmonth" onclick="switchReportDate('lastmonth')">지난달</button>
     </div>
     <div class="section-hdr">
       <span class="section-label">총 광고비</span>
@@ -928,7 +930,9 @@ function switchReportDate(preset) {
   document.getElementById('rtab-today').classList.toggle('on', preset === 'today');
   document.getElementById('rtab-yesterday').classList.toggle('on', preset === 'yesterday');
   document.getElementById('rtab-month').classList.toggle('on', preset === 'month');
-  const labels = { today: '오늘 총 광고비', yesterday: '어제 총 광고비', month: '이번달 총 광고비' };
+  document.getElementById('rtab-lastmonth').classList.toggle('on', preset === 'lastmonth');
+  document.getElementById('rtab-lastmonth').classList.toggle('on', preset === 'lastmonth');
+  const labels = { today: '오늘 총 광고비', yesterday: '어제 총 광고비', month: '이번달 총 광고비', lastmonth: '지난달 총 광고비' };
   document.getElementById('report-total-label').textContent = labels[preset];
   loadReport();
 }
@@ -951,7 +955,7 @@ async function loadReport() {
     const id = cId(c);
     if (!id) continue;
     try {
-      const dateParam = reportDatePreset === 'month' ? getMonthDateParam() : `datePreset=${reportDatePreset}`;
+      const dateParam = (reportDatePreset === 'month' || reportDatePreset === 'lastmonth') ? getMonthDateParam() : `datePreset=${reportDatePreset}`;
       const data = await apiCallWithFields('GET', `/stats?id=${id}&type=CAMPAIGN&${dateParam}`, '["salesAmt","clkCnt","impCnt"]');
       const items = Array.isArray(data) ? data : (data.data || data.report || []);
       let cost = 0;
@@ -1009,7 +1013,7 @@ async function loadReportAdGroups(campId, campName, campCost) {
       const gid = gId(g);
       if (!gid) continue;
       try {
-        const dateParam = reportDatePreset === 'month' ? getMonthDateParam() : `datePreset=${reportDatePreset}`;
+        const dateParam = (reportDatePreset === 'month' || reportDatePreset === 'lastmonth') ? getMonthDateParam() : `datePreset=${reportDatePreset}`;
         const data = await apiCallWithFields('GET', `/stats?id=${gid}&type=ADGROUP&${dateParam}`, '["salesAmt","clkCnt","impCnt"]');
         const items = Array.isArray(data) ? data : (data.data || data.report || []);
         let cost = 0;
@@ -1035,12 +1039,28 @@ async function loadReportAdGroups(campId, campName, campCost) {
 
 function getMonthDateParam() {
   const now = new Date();
-  const yyyy = now.getFullYear();
-  const mm   = String(now.getMonth()+1).padStart(2,'0');
-  const dd   = String(now.getDate()).padStart(2,'0');
+  let yyyy, mm, lastDay;
+  if (reportDatePreset === 'lastmonth') {
+    const d = new Date(now.getFullYear(), now.getMonth(), 0); // 지난달 마지막날
+    yyyy = d.getFullYear();
+    mm   = String(d.getMonth()+1).padStart(2,'0');
+    lastDay = String(d.getDate()).padStart(2,'0');
+  } else {
+    yyyy = now.getFullYear();
+    mm   = String(now.getMonth()+1).padStart(2,'0');
+    lastDay = String(now.getDate()).padStart(2,'0');
+  }
   const since = `${yyyy}-${mm}-01`;
-  const until = `${yyyy}-${mm}-${dd}`;
+  const until = `${yyyy}-${mm}-${lastDay}`;
   return `timeRange=${encodeURIComponent(JSON.stringify({since,until}))}`;
+}
+
+function getLastMonthDateParam() {
+  const now = new Date();
+  const firstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastDay  = new Date(now.getFullYear(), now.getMonth(), 0);
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return `timeRange=${encodeURIComponent(JSON.stringify({since:fmt(firstDay),until:fmt(lastDay)}))}` ;
 }
 
 async function apiCallWithFields(method, path, fields) {
