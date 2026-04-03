@@ -569,6 +569,7 @@ async function loadCampaigns() {
       // 네이버 API 응답 구조에 따라 조정
       campaigns = Array.isArray(data) ? data : (data.campaigns || []);
     }
+    campaigns.sort((a,b) => (cOn(b)?1:0) - (cOn(a)?1:0));
     renderCampaigns();
   } catch(e) {
     document.getElementById('c-list').innerHTML = `
@@ -586,7 +587,7 @@ async function loadCampaigns() {
 function cName(c)  { return c.campaignName || c.name || c.nccCampaignId || '-'; }
 function cId(c)    { return c.nccCampaignId || c.campaignId || c.id || ''; }
 function cOn(c)    { const s = c.userLock || c.status || ''; return s === 'NONE' || s === 'ELIGIBLE' || s === 'operating'; }
-function cGroups(c){ return c.adGroupCount ?? c.adgroupCount ?? '?'; }
+function cGroups(c){ return c.adGroupCount ?? c.adgroupCount ?? c.nccAdgroupCount ?? c.adgroupCnt ?? c.groupCount ?? '?'; }
 
 function gName(g)  { return g.adGroupName || g.name || g.adgroupName || g.nccAdgroupId || '-'; }
 function gId(g)    { return g.nccAdgroupId || g.adGroupId || g.adgroupId || g.id || ''; }
@@ -613,7 +614,7 @@ function renderCampaigns() {
         <div class="c-name">${cName(c)}</div>
         <div class="c-meta">
           <span class="badge ${on?'badge-on':'badge-off'}">${on?'● 운영중':'■ 중지'}</span>
-          <span class="c-groups">그룹 ${cGroups(c)}개</span>
+          ${cGroups(c) !== '?' ? `<span class="c-groups">그룹 ${cGroups(c)}개</span>` : ''}
         </div>
       </div>
       <div class="c-arrow">
@@ -666,6 +667,7 @@ async function openCampaign(id, name) {
       const dbg = window._dbgSample || '응답 없음';
       toast(`0개: ${dbg.slice(0,80)}`, 'err');
     }
+    groups.sort((a,b) => (gOn(b)?1:0) - (gOn(a)?1:0));
     renderAdGroups(groups);
   } catch(e) {
     document.getElementById('ag-list').innerHTML = `<div class="empty"><div class="empty-ico">⚠️</div><div class="empty-text">${e.message}</div></div>`;
