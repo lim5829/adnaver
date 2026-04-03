@@ -888,13 +888,19 @@ async function loadTodayCost() {
       if (!id) continue;
       try {
         const data = await apiCall('GET',
-          `/stats?id=${id}&type=CAMPAIGN&dateFrom=${dateStr}&dateTo=${dateStr}&timeUnit=DAY&fields=salesAmt`
+          `/stats?id=${id}&type=CAMPAIGN&dateFrom=${dateStr}&dateTo=${dateStr}&timeUnit=DAY&fields=salesAmt,clkCnt,impCnt`
         );
         const items = Array.isArray(data) ? data : (data.data || data.report || []);
+        // 첫 캠페인 응답 디버그
+        if (total === 0 && items.length > 0) {
+          alert('통계 응답: ' + JSON.stringify(items[0]).slice(0, 400));
+        }
         items.forEach(item => {
-          total += parseFloat(item.salesAmt || item.cost || 0);
+          const keys = Object.keys(item);
+          const costKey = keys.find(k => k.toLowerCase().includes('cost') || k.toLowerCase().includes('sales') || k.toLowerCase().includes('spend') || k.toLowerCase().includes('charge'));
+          total += parseFloat(costKey ? item[costKey] : 0);
         });
-      } catch(e2) { /* 개별 캠페인 실패 무시 */ }
+      } catch(e2) { alert('캠페인 통계 오류: ' + e2.message); }
     }
 
     const pill = document.getElementById('costPill');
