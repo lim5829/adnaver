@@ -11,7 +11,7 @@ export default {
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, X-API-KEY, X-SECRET, X-CUSTOMER',
+          'Access-Control-Allow-Headers': 'Content-Type, X-API-KEY, X-SECRET, X-CUSTOMER, X-STAT-FIELDS',
         },
       });
     }
@@ -49,6 +49,15 @@ export default {
     const signature = btoa(String.fromCharCode(...new Uint8Array(sigBuf)));
 
     // 네이버 API 호출
+    // X-STAT-FIELDS 헤더로 fields 파라미터 처리
+    const statFields = request.headers.get('X-STAT-FIELDS');
+    if (statFields && !apiPath.includes('fields=')) {
+      const sep = apiPath.includes('?') ? '&' : '?';
+      apiPath2 = apiPath + sep + 'fields=' + encodeURIComponent(statFields);
+    } else {
+      apiPath2 = apiPath;
+    }
+
     const headers = {
       'Content-Type':  'application/json; charset=UTF-8',
       'X-Timestamp':   timestamp,
@@ -88,6 +97,3 @@ function json(obj, status = 200) {
     },
   });
 }
-
-
-

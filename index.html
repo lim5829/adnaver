@@ -370,7 +370,8 @@ body {
   </div>
   <div class="tabs">
     <button class="tab on" onclick="goTab('campaign')">캠페인</button>
-    <button class="tab" onclick="goTab('setup')">API 설정</button>
+    <button class="tab" onclick="goTab('report')">광고비</button>
+    <button class="tab" onclick="goTab('setup')">설정</button>
   </div>
 </div>
 
@@ -412,6 +413,23 @@ body {
     </div>
     <div id="c-list"></div>
   </div>
+</div>
+
+<!-- ═══════════════ REPORT SCREEN ═══════════════ -->
+<div class="scr" id="scr-report">
+  <div class="section-hdr">
+    <span class="section-label">어제 광고비</span>
+    <button class="icon-btn" id="reportRefBtn" onclick="loadReport()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="14" height="14"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+      새로고침
+    </button>
+  </div>
+  <div class="stat" style="margin-bottom:16px;text-align:center;padding:20px;background:var(--s1);border:1px solid var(--border);border-radius:14px">
+    <div class="stat-v" id="report-total-amt" style="font-size:32px;color:var(--green)">-</div>
+    <div class="stat-l" style="margin-top:6px">어제 총 광고비</div>
+  </div>
+  <div class="section-label" style="margin-bottom:10px;display:block">캠페인별</div>
+  <div id="report-list"><div class="loader"><div class="spin-ring"></div><div class="loader-text">캠페인을 먼저 불러오세요</div></div></div>
 </div>
 
 <!-- ═══════════════ SETUP SCREEN ═══════════════ -->
@@ -479,6 +497,10 @@ body {
   <button class="nav-btn on" id="nav-campaign" onclick="goTab('campaign')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
     캠페인
+  </button>
+  <button class="nav-btn" id="nav-report" onclick="goTab('report')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+    광고비
   </button>
   <button class="nav-btn" id="nav-setup" onclick="goTab('setup')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
@@ -550,11 +572,14 @@ window.addEventListener('load', () => {
 // UI HELPERS
 // ════════════════════════════════════════════
 function goTab(name) {
-  ['campaign','setup'].forEach(n => {
+  ['campaign','report','setup'].forEach(n => {
     document.getElementById('scr-'+n).classList.toggle('on', n===name);
     document.getElementById('nav-'+n).classList.toggle('on', n===name);
-    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('on', (i===0 && name==='campaign')||(i===1 && name==='setup')));
   });
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('on', (i===0&&name==='campaign')||(i===1&&name==='report')||(i===2&&name==='setup'));
+  });
+  if (name === 'report' && campaigns.length > 0) loadReport();
 }
 
 function setConnected(on) {
@@ -855,6 +880,74 @@ async function copyWorkerCode() {
   } catch {
     toast('복사 실패 — 코드를 직접 worker.js 파일에서 복사하세요', 'err');
   }
+}
+
+// ════════════════════════════════════════════
+// REPORT (어제 광고비)
+// ════════════════════════════════════════════
+async function loadReport() {
+  if (!campaigns.length) return;
+  const el = document.getElementById('report-list');
+  el.innerHTML = '<div class="loader"><div class="spin-ring"></div><div class="loader-text">불러오는 중...</div></div>';
+  document.getElementById('report-total-amt').textContent = '-';
+
+  const today = new Date();
+  today.setDate(today.getDate() - 1);
+  const yyyy = today.getFullYear();
+  const mm   = String(today.getMonth()+1).padStart(2,'0');
+  const dd   = String(today.getDate()).padStart(2,'0');
+  const dateStr = `${yyyy}-${mm}-${dd}`;
+
+  const results = [];
+  let grandTotal = 0;
+
+  for (const c of campaigns) {
+    const id = cId(c);
+    if (!id) continue;
+    try {
+      // fields를 쿼리스트링이 아닌 별도 헤더로 전달 (Worker가 처리)
+      const qs = `id=${id}&type=CAMPAIGN&datePreset=yesterday`;
+      const data = await apiCallWithFields('GET', `/stats?${qs}`, '["salesAmt","clkCnt","impCnt"]');
+      const items = Array.isArray(data) ? data : (data.data || data.report || []);
+      let cost = 0;
+      items.forEach(item => { cost += parseInt(item.salesAmt || 0); });
+      results.push({ name: cName(c), cost, on: cOn(c) });
+      grandTotal += cost;
+    } catch(e) {
+      results.push({ name: cName(c), cost: -1, on: cOn(c) });
+    }
+  }
+
+  document.getElementById('report-total-amt').textContent = grandTotal.toLocaleString() + '원';
+
+  results.sort((a,b) => b.cost - a.cost);
+  el.innerHTML = results.map(r => `
+    <div class="ag-item" style="margin-bottom:8px;${!r.on?'opacity:.45':''}">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-size:13px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.name}</div>
+        <div style="font-size:16px;font-weight:900;color:var(--green);margin-left:12px">${r.cost < 0 ? '-' : r.cost.toLocaleString()+'원'}</div>
+      </div>
+    </div>`).join('');
+}
+
+async function apiCallWithFields(method, path, fields) {
+  if (!CFG.proxy) throw new Error('프록시 URL이 설정되지 않았습니다');
+  const proxyUrl = CFG.proxy.replace(/\/$/, '') + '/proxy' + path;
+  const res = await fetch(proxyUrl, {
+    method,
+    headers: {
+      'Content-Type':  'application/json',
+      'X-API-KEY':     CFG.license,
+      'X-SECRET':      CFG.secret,
+      'X-CUSTOMER':    CFG.customer,
+      'X-STAT-FIELDS': fields,
+    }
+  });
+  if (!res.ok) {
+    const err = await res.text().catch(()=>'');
+    throw new Error(`API ${res.status}: ${err.slice(0,120)}`);
+  }
+  return res.json();
 }
 
 // ════════════════════════════════════════════
