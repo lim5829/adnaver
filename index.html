@@ -287,6 +287,16 @@ body {
 .nav-btn.on { color: var(--green); }
 .nav-btn svg { width: 22px; height: 22px; }
 
+/* ── REPORT DATE TABS ── */
+.rank-tabs { display: flex; gap: 6px; }
+.rank-tab {
+  flex: 1; padding: 16px 0; border-radius: 12px; border: none;
+  background: var(--s1); border: 1px solid var(--border);
+  color: var(--dim); font-size: 15px; font-weight: 800;
+  font-family: inherit; cursor: pointer; transition: all .2s;
+}
+.rank-tab.on { background: var(--s2); color: var(--text); border-color: var(--accent2); }
+
 /* ── PRESET ── */
 .preset-bar { display: flex; flex-wrap: wrap; gap: 6px; }
 .preset-btn {
@@ -423,6 +433,7 @@ body {
     <div class="rank-tabs" style="margin-bottom:12px">
       <button class="rank-tab on" id="rtab-today" onclick="switchReportDate('today')">오늘</button>
       <button class="rank-tab" id="rtab-yesterday" onclick="switchReportDate('yesterday')">어제</button>
+      <button class="rank-tab" id="rtab-month" onclick="switchReportDate('month')">이번달</button>
     </div>
     <div class="section-hdr">
       <span class="section-label">총 광고비</span>
@@ -916,7 +927,9 @@ function switchReportDate(preset) {
   reportDatePreset = preset;
   document.getElementById('rtab-today').classList.toggle('on', preset === 'today');
   document.getElementById('rtab-yesterday').classList.toggle('on', preset === 'yesterday');
-  document.getElementById('report-total-label').textContent = preset === 'today' ? '오늘 총 광고비' : '어제 총 광고비';
+  document.getElementById('rtab-month').classList.toggle('on', preset === 'month');
+  const labels = { today: '오늘 총 광고비', yesterday: '어제 총 광고비', month: '이번달 총 광고비' };
+  document.getElementById('report-total-label').textContent = labels[preset];
   loadReport();
 }
 
@@ -938,7 +951,8 @@ async function loadReport() {
     const id = cId(c);
     if (!id) continue;
     try {
-      const data = await apiCallWithFields('GET', `/stats?id=${id}&type=CAMPAIGN&datePreset=${reportDatePreset}`, '["salesAmt","clkCnt","impCnt"]');
+      const dateParam = reportDatePreset === 'month' ? getMonthDateParam() : `datePreset=${reportDatePreset}`;
+      const data = await apiCallWithFields('GET', `/stats?id=${id}&type=CAMPAIGN&${dateParam}`, '["salesAmt","clkCnt","impCnt"]');
       const items = Array.isArray(data) ? data : (data.data || data.report || []);
       let cost = 0;
       items.forEach(item => { cost += parseInt(item.salesAmt || 0); });
@@ -995,7 +1009,8 @@ async function loadReportAdGroups(campId, campName, campCost) {
       const gid = gId(g);
       if (!gid) continue;
       try {
-        const data = await apiCallWithFields('GET', `/stats?id=${gid}&type=ADGROUP&datePreset=${reportDatePreset}`, '["salesAmt","clkCnt","impCnt"]');
+        const dateParam = reportDatePreset === 'month' ? getMonthDateParam() : `datePreset=${reportDatePreset}`;
+        const data = await apiCallWithFields('GET', `/stats?id=${gid}&type=ADGROUP&${dateParam}`, '["salesAmt","clkCnt","impCnt"]');
         const items = Array.isArray(data) ? data : (data.data || data.report || []);
         let cost = 0;
         items.forEach(item => { cost += parseInt(item.salesAmt || 0); });
@@ -1016,6 +1031,16 @@ async function loadReportAdGroups(campId, campName, campCost) {
   } catch(e) {
     el.innerHTML = `<div class="empty"><div class="empty-ico">⚠️</div><div class="empty-text">${e.message}</div></div>`;
   }
+}
+
+function getMonthDateParam() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm   = String(now.getMonth()+1).padStart(2,'0');
+  const dd   = String(now.getDate()).padStart(2,'0');
+  const since = `${yyyy}-${mm}-01`;
+  const until = `${yyyy}-${mm}-${dd}`;
+  return `timeRange=${encodeURIComponent(JSON.stringify({since,until}))}`;
 }
 
 async function apiCallWithFields(method, path, fields) {
