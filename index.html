@@ -347,6 +347,33 @@ body {
   color: var(--red); font-size: 13px; cursor: pointer;
 }
 
+/* ── RANK ── */
+.rank-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+.rank-tab {
+  flex: 1; padding: 9px 0; border-radius: 10px; border: none;
+  background: transparent; color: var(--dim);
+  font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all .2s;
+}
+.rank-tab.on { background: var(--s2); color: var(--text); }
+
+.kw-card {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px; margin-bottom: 8px;
+}
+.kw-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.kw-name { font-size: 13px; font-weight: 700; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kw-rank {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 12px;
+}
+.kw-rank-num { font-size: 18px; font-weight: 900; color: var(--green); }
+.kw-rank-label { font-size: 11px; color: var(--dim); font-weight: 600; }
+.kw-rank.bad .kw-rank-num { color: var(--red); }
+.kw-rank.mid .kw-rank-num { color: var(--yellow); }
+.kw-meta { display: flex; gap: 12px; margin-top: 8px; font-size: 11px; color: var(--dim); font-weight: 600; }
+.kw-meta span { display: flex; align-items: center; gap: 3px; }
+
 /* demo notice */
 .notice {
   background: rgba(255,171,0,.08); border: 1px solid rgba(255,171,0,.2);
@@ -383,7 +410,12 @@ body {
     </button>
     <div class="ag-title" id="ag-title"></div>
     <div class="ag-sub" id="ag-sub"></div>
+    <div class="rank-tabs">
+      <button class="rank-tab on" id="tab-bid" onclick="switchAgTab('bid')">입찰가 관리</button>
+      <button class="rank-tab" id="tab-rank" onclick="switchAgTab('rank')">노출 순위</button>
+    </div>
     <div id="ag-list"></div>
+    <div id="rank-list" style="display:none"></div>
   </div>
 
   <!-- Campaign list view -->
@@ -708,10 +740,16 @@ function renderCampaigns() {
 // ════════════════════════════════════════════
 async function openCampaign(id, name) {
   currentCampaign = id;
+  window._rankLoaded = false;
   document.getElementById('v-camp').style.display = 'none';
   document.getElementById('v-ag').style.display   = 'block';
   document.getElementById('ag-title').textContent = name;
-  document.getElementById('ag-sub').textContent   = '광고그룹별 입찰가를 조정하세요';
+  document.getElementById('ag-sub').textContent   = '';
+  document.getElementById('rank-list').innerHTML  = '';
+  document.getElementById('rank-list').style.display = 'none';
+  document.getElementById('ag-list').style.display = 'block';
+  document.getElementById('tab-bid').classList.add('on');
+  document.getElementById('tab-rank').classList.remove('on');
   loader('ag-list');
 
   try {
@@ -739,6 +777,8 @@ async function openCampaign(id, name) {
     // 원본 데이터 저장 (PUT 시 전체 필드 전송용)
     window._adgroupRaw = {};
     groups.forEach(g => { window._adgroupRaw[gId(g)] = g; });
+    // 노출순위 조회용 광고그룹 ID 저장
+    window._currentAgIds = groups.map(g => gId(g)).filter(Boolean).join(',');
     if (groups.length > 0) {
       const keys = Object.keys(groups[0]).slice(0,8).join(', ');
       toast(`✅ 그룹 ${groups.length}개 | ${keys}`, 'ok');
@@ -847,6 +887,99 @@ async function copyWorkerCode() {
     toast('✅ Worker 코드가 클립보드에 복사되었습니다');
   } catch {
     toast('복사 실패 — 코드를 직접 worker.js 파일에서 복사하세요', 'err');
+  }
+}
+
+// ════════════════════════════════════════════
+// AG TAB SWITCH
+// ════════════════════════════════════════════
+function switchAgTab(tab) {
+  const isBid = tab === 'bid';
+  document.getElementById('ag-list').style.display   = isBid ? 'block' : 'none';
+  document.getElementById('rank-list').style.display = isBid ? 'none'  : 'block';
+  document.getElementById('tab-bid').classList.toggle('on', isBid);
+  document.getElementById('tab-rank').classList.toggle('on', !isBid);
+  if (!isBid && !window._rankLoaded) loadRank();
+}
+
+// ════════════════════════════════════════════
+// RANK (키워드 노출순위)
+// ════════════════════════════════════════════
+window._rankLoaded = false;
+
+async function loadRank() {
+  const el = document.getElementById('rank-list');
+  el.innerHTML = '<div class="loader"><div class="spin-ring"></div><div class="loader-text">순위 불러오는 중...</div></div>';
+
+  try {
+    // 오늘 날짜 기준 리포트
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth()+1).padStart(2,'0');
+    const dd = String(today.getDate()).padStart(2,'0');
+    const dateStr = `${yyyy}${mm}${dd}`;
+
+    // 광고그룹 내 키워드 목록 조회
+    const kwData = await apiCall('GET', `/ncc/keywords?nccAdgroupIds=${window._currentAgIds}`);
+    const keywords = Array.isArray(kwData) ? kwData : (kwData.keywords || kwData.items || []);
+
+    if (!keywords.length) {
+      el.innerHTML = '<div class="empty"><div class="empty-ico">📭</div><div class="empty-text">키워드가 없습니다</div></div>';
+      return;
+    }
+
+    // 키워드별 리포트 (평균노출순위)
+    const kwIds = keywords.map(k => k.nccKeywordId || k.keywordId || k.id).filter(Boolean).join(',');
+    let reportData = [];
+    try {
+      const report = await apiCall('GET',
+        `/stats?ids=${kwIds}&subtypes=KEYWORD&datePreset=yesterday&fields=clkCnt,impCnt,avgRnk,ctr,salesAmt`
+      );
+      reportData = Array.isArray(report) ? report : (report.data || report.items || []);
+    } catch(e) {
+      // 리포트 실패시 키워드 목록만 표시
+    }
+
+    // 리포트 데이터를 키워드ID로 맵핑
+    const reportMap = {};
+    reportData.forEach(r => { reportMap[r.id || r.nccKeywordId] = r; });
+
+    // 순위순 정렬
+    const ranked = keywords.map(k => {
+      const id = k.nccKeywordId || k.keywordId || k.id;
+      const r = reportMap[id] || {};
+      return { ...k, _rank: parseFloat(r.avgRnk) || 999, _imp: r.impCnt||0, _clk: r.clkCnt||0, _ctr: r.ctr||0 };
+    }).sort((a,b) => a._rank - b._rank);
+
+    el.innerHTML = ranked.map(k => {
+      const rank = k._rank < 999 ? k._rank.toFixed(1) : '-';
+      const rankClass = k._rank <= 3 ? '' : k._rank <= 6 ? 'mid' : 'bad';
+      const kwName = k.keyword || k.keywordStr || k.name || k.nccKeywordId || '-';
+      const on = (k.userLock||k.status||'') === 'NONE' || (k.userLock||k.status||'') === 'ELIGIBLE';
+      return `
+      <div class="kw-card">
+        <div class="kw-row">
+          <div class="kw-name">${kwName}</div>
+          <div class="kw-rank ${rankClass}">
+            <div>
+              <div class="kw-rank-num">${rank}</div>
+              <div class="kw-rank-label">평균순위</div>
+            </div>
+          </div>
+        </div>
+        <div class="kw-meta">
+          <span>👁 ${Number(k._imp).toLocaleString()}</span>
+          <span>🖱 ${Number(k._clk).toLocaleString()}</span>
+          <span>CTR ${k._ctr ? (k._ctr*100).toFixed(1)+'%' : '-'}</span>
+          <span class="badge ${on?'badge-on':'badge-off'}" style="font-size:10px">${on?'운영중':'중지'}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    window._rankLoaded = true;
+  } catch(e) {
+    el.innerHTML = `<div class="empty"><div class="empty-ico">⚠️</div><div class="empty-text">${e.message}</div></div>`;
+    toast(e.message, 'err');
   }
 }
 
