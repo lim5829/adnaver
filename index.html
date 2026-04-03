@@ -888,7 +888,7 @@ async function loadTodayCost() {
       if (!id) continue;
       try {
         const data = await apiCall('GET',
-          `/stats?id=${id}&type=CAMPAIGN&dateFrom=${dateStr}&dateTo=${dateStr}&timeUnit=DAY&fields=salesAmt,clkCnt,impCnt`
+          `/stats?id=${id}&type=CAMPAIGN&timeRange={"since":"${dateStr}","until":"${dateStr}"}&fields=salesAmt,clkCnt,impCnt`
         );
         const items = Array.isArray(data) ? data : (data.data || data.report || []);
         // 첫 캠페인 응답 디버그
