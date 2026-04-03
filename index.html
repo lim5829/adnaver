@@ -883,6 +883,9 @@ async function loadTodayCost() {
       `/stats?datePreset=today&fields=salesAmt&subtypes=CAMPAIGN`
     );
 
+    // 디버그: 응답 구조 확인
+    alert('광고비 응답: ' + JSON.stringify(data).slice(0, 300));
+
     const items = Array.isArray(data) ? data : (data.data || data.items || []);
     const total = items.reduce((sum, item) => {
       const amt = item.salesAmt || item.cost || item.totalCost || 0;
@@ -894,8 +897,7 @@ async function loadTodayCost() {
     amt.textContent = Math.round(total).toLocaleString() + '원';
     pill.style.display = 'flex';
   } catch(e) {
-    // 광고비 조회 실패 시 조용히 무시
-    console.log('cost error:', e.message);
+    alert('광고비 오류: ' + e.message);
   }
 }
 
