@@ -48,9 +48,9 @@ export default {
     const sigBuf   = await crypto.subtle.sign('HMAC', cryptoKey, msgData);
     const signature = btoa(String.fromCharCode(...new Uint8Array(sigBuf)));
 
-    // 네이버 API 호출
     // X-STAT-FIELDS 헤더로 fields 파라미터 처리
     const statFields = request.headers.get('X-STAT-FIELDS');
+    let apiPath2;
     if (statFields && !apiPath.includes('fields=')) {
       const sep = apiPath.includes('?') ? '&' : '?';
       apiPath2 = apiPath + sep + 'fields=' + encodeURIComponent(statFields);
@@ -72,7 +72,7 @@ export default {
 
     let apiRes;
     try {
-      apiRes = await fetch(apiBase + apiPath, { method, headers, body });
+      apiRes = await fetch(apiBase + apiPath2, { method, headers, body });
     } catch (e) {
       return json({ error: e.message }, 502);
     }
