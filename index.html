@@ -879,16 +879,22 @@ async function loadTodayCost() {
     const dd   = String(today.getDate()).padStart(2,'0');
     const dateStr = `${yyyy}${mm}${dd}`;
 
+    // 네이버 광고 통계 API - 오늘 날짜
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm   = String(today.getMonth()+1).padStart(2,'0');
+    const dd   = String(today.getDate()).padStart(2,'0');
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+
     const data = await apiCall('GET',
-      `/stats?datePreset=today&fields=salesAmt&subtypes=CAMPAIGN`
+      `/stats?dateFrom=${dateStr}&dateTo=${dateStr}&timeUnit=DAY&fields=clkCnt,impCnt,salesAmt`
     );
 
-    // 디버그: 응답 구조 확인
-    alert('광고비 응답: ' + JSON.stringify(data).slice(0, 300));
+    alert('광고비 응답: ' + JSON.stringify(data).slice(0, 400));
 
-    const items = Array.isArray(data) ? data : (data.data || data.items || []);
+    const items = Array.isArray(data) ? data : (data.data || data.items || data.report || []);
     const total = items.reduce((sum, item) => {
-      const amt = item.salesAmt || item.cost || item.totalCost || 0;
+      const amt = item.salesAmt || item.cost || item.totalCost || item.spend || 0;
       return sum + parseFloat(amt);
     }, 0);
 
@@ -897,7 +903,7 @@ async function loadTodayCost() {
     amt.textContent = Math.round(total).toLocaleString() + '원';
     pill.style.display = 'flex';
   } catch(e) {
-    alert('광고비 오류: ' + e.message);
+    alert('광고비 오류2: ' + e.message);
   }
 }
 
