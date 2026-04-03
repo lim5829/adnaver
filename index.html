@@ -885,7 +885,7 @@ function renderCampaigns() {
   const groups = campaigns.reduce((s,c) => s + (parseInt(cGroups(c))||0), 0);
   document.getElementById('s-total').textContent  = campaigns.length;
   document.getElementById('s-active').textContent = active;
-  document.getElementById('s-groups').textContent = groups || '?';
+  if (document.getElementById('s-groups')) document.getElementById('s-groups').textContent = groups || '?';
 
   if (!campaigns.length) {
     document.getElementById('c-list').innerHTML = '<div class="empty"><div class="empty-ico">📭</div><div class="empty-text">캠페인이 없습니다</div></div>';
