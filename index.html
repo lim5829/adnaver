@@ -47,13 +47,6 @@ body {
 }
 .logo { font-size: 18px; font-weight: 900; letter-spacing: -0.8px; }
 .logo em { color: var(--green); font-style: normal; }
-.cost-pill {
-  display: flex; align-items: center; gap: 4px;
-  background: rgba(0,200,83,.1); border: 1px solid rgba(0,200,83,.25);
-  border-radius: 20px; padding: 5px 12px;
-  font-size: 12px; font-weight: 800; color: var(--green);
-  letter-spacing: -.3px;
-}
 .conn-pill {
   display: flex; align-items: center; gap: 6px;
   background: var(--s2); border: 1px solid var(--border);
@@ -373,10 +366,7 @@ body {
 <div class="hdr">
   <div class="hdr-top">
     <div class="logo">NAD <em>BID</em></div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <div class="cost-pill" id="costPill" style="display:none">💰 <span id="costAmt">-</span></div>
-      <div class="conn-pill" id="connPill"><span class="dot"></span><span id="connText">미연결</span></div>
-    </div>
+    <div class="conn-pill" id="connPill"><span class="dot"></span><span id="connText">미연결</span></div>
   </div>
   <div class="tabs">
     <button class="tab on" onclick="goTab('campaign')">캠페인</button>
@@ -636,7 +626,6 @@ async function saveAndConnect() {
   toast('설정이 저장되었습니다');
   goTab('campaign');
   loadCampaigns();
-  loadTodayCost();
 }
 
 function enableDemo() {
@@ -667,7 +656,6 @@ async function loadCampaigns() {
     }
     campaigns.sort((a,b) => (cOn(b)?1:0) - (cOn(a)?1:0));
     renderCampaigns();
-    if (!DEMO_MODE) loadTodayCost();
   } catch(e) {
     document.getElementById('c-list').innerHTML = `
       <div class="empty">
@@ -869,47 +857,6 @@ async function copyWorkerCode() {
   }
 }
 
-// ════════════════════════════════════════════
-// TODAY COST
-// ════════════════════════════════════════════
-async function loadTodayCost() {
-  try {
-    if (!campaigns || !campaigns.length) return;
-
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm   = String(today.getMonth()+1).padStart(2,'0');
-    const dd   = String(today.getDate()).padStart(2,'0');
-    const dateStr = `${yyyy}-${mm}-${dd}`;
-
-    let total = 0;
-    for (const c of campaigns) {
-      const id = cId(c);
-      if (!id) continue;
-      try {
-        const data = await apiCall('GET',
-          `/stats?id=${id}&type=CAMPAIGN&datePreset=yesterday`
-        );
-        const items = Array.isArray(data) ? data : (data.data || data.report || data.stat || []);
-        if (total === 0 && items.length > 0) {
-          alert('통계 응답: ' + JSON.stringify(items[0]).slice(0, 400));
-        }
-        items.forEach(item => {
-          const keys = Object.keys(item);
-          const costKey = keys.find(k => ['salesamt','cost','totalcost','spend','charge','adcost'].includes(k.toLowerCase()));
-          total += parseFloat(costKey ? item[costKey] : 0);
-        });
-      } catch(e2) { alert('캠페인 통계 오류: ' + e2.message); }
-    }
-
-    const pill = document.getElementById('costPill');
-    const amtEl = document.getElementById('costAmt');
-    amtEl.textContent = Math.round(total).toLocaleString() + '원';
-    pill.style.display = 'flex';
-  } catch(e) {
-    console.log('cost error:', e.message);
-  }
-}
 // ════════════════════════════════════════════
 // PRESETS
 // ════════════════════════════════════════════
