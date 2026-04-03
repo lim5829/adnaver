@@ -652,7 +652,7 @@ function enableDemo() {
 async function loadCampaigns() {
   setSpin(true);
   document.getElementById('demo-notice').style.display = 'none';
-  if (!DEMO_MODE) loadTodayCost();
+
   loader('c-list');
 
   try {
@@ -667,6 +667,7 @@ async function loadCampaigns() {
     }
     campaigns.sort((a,b) => (cOn(b)?1:0) - (cOn(a)?1:0));
     renderCampaigns();
+    if (!DEMO_MODE) loadTodayCost();
   } catch(e) {
     document.getElementById('c-list').innerHTML = `
       <div class="empty">
@@ -873,40 +874,37 @@ async function copyWorkerCode() {
 // ════════════════════════════════════════════
 async function loadTodayCost() {
   try {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm   = String(today.getMonth()+1).padStart(2,'0');
-    const dd   = String(today.getDate()).padStart(2,'0');
-    const dateStr = `${yyyy}${mm}${dd}`;
+    if (!campaigns || !campaigns.length) return;
 
-    // 네이버 광고 통계 API - 오늘 날짜
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm   = String(today.getMonth()+1).padStart(2,'0');
     const dd   = String(today.getDate()).padStart(2,'0');
     const dateStr = `${yyyy}-${mm}-${dd}`;
 
-    const data = await apiCall('GET',
-      `/stats?dateFrom=${dateStr}&dateTo=${dateStr}&timeUnit=DAY&fields=clkCnt,impCnt,salesAmt`
-    );
-
-    alert('광고비 응답: ' + JSON.stringify(data).slice(0, 400));
-
-    const items = Array.isArray(data) ? data : (data.data || data.items || data.report || []);
-    const total = items.reduce((sum, item) => {
-      const amt = item.salesAmt || item.cost || item.totalCost || item.spend || 0;
-      return sum + parseFloat(amt);
-    }, 0);
+    let total = 0;
+    for (const c of campaigns) {
+      const id = cId(c);
+      if (!id) continue;
+      try {
+        const data = await apiCall('GET',
+          `/stats?id=${id}&type=CAMPAIGN&dateFrom=${dateStr}&dateTo=${dateStr}&timeUnit=DAY&fields=salesAmt`
+        );
+        const items = Array.isArray(data) ? data : (data.data || data.report || []);
+        items.forEach(item => {
+          total += parseFloat(item.salesAmt || item.cost || 0);
+        });
+      } catch(e2) { /* 개별 캠페인 실패 무시 */ }
+    }
 
     const pill = document.getElementById('costPill');
-    const amt  = document.getElementById('costAmt');
-    amt.textContent = Math.round(total).toLocaleString() + '원';
+    const amtEl = document.getElementById('costAmt');
+    amtEl.textContent = Math.round(total).toLocaleString() + '원';
     pill.style.display = 'flex';
   } catch(e) {
-    alert('광고비 오류2: ' + e.message);
+    console.log('cost error:', e.message);
   }
 }
-
 // ════════════════════════════════════════════
 // PRESETS
 // ════════════════════════════════════════════
