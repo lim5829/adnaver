@@ -47,6 +47,13 @@ body {
 }
 .logo { font-size: 18px; font-weight: 900; letter-spacing: -0.8px; }
 .logo em { color: var(--green); font-style: normal; }
+.cost-pill {
+  display: flex; align-items: center; gap: 4px;
+  background: rgba(0,200,83,.1); border: 1px solid rgba(0,200,83,.25);
+  border-radius: 20px; padding: 5px 12px;
+  font-size: 12px; font-weight: 800; color: var(--green);
+  letter-spacing: -.3px;
+}
 .conn-pill {
   display: flex; align-items: center; gap: 6px;
   background: var(--s2); border: 1px solid var(--border);
@@ -366,7 +373,10 @@ body {
 <div class="hdr">
   <div class="hdr-top">
     <div class="logo">NAD <em>BID</em></div>
-    <div class="conn-pill" id="connPill"><span class="dot"></span><span id="connText">미연결</span></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div class="cost-pill" id="costPill" style="display:none">💰 <span id="costAmt">-</span></div>
+      <div class="conn-pill" id="connPill"><span class="dot"></span><span id="connText">미연결</span></div>
+    </div>
   </div>
   <div class="tabs">
     <button class="tab on" onclick="goTab('campaign')">캠페인</button>
@@ -626,6 +636,7 @@ async function saveAndConnect() {
   toast('설정이 저장되었습니다');
   goTab('campaign');
   loadCampaigns();
+  loadTodayCost();
 }
 
 function enableDemo() {
@@ -641,6 +652,7 @@ function enableDemo() {
 async function loadCampaigns() {
   setSpin(true);
   document.getElementById('demo-notice').style.display = 'none';
+  if (!DEMO_MODE) loadTodayCost();
   loader('c-list');
 
   try {
@@ -853,6 +865,37 @@ async function copyWorkerCode() {
     toast('✅ Worker 코드가 클립보드에 복사되었습니다');
   } catch {
     toast('복사 실패 — 코드를 직접 worker.js 파일에서 복사하세요', 'err');
+  }
+}
+
+// ════════════════════════════════════════════
+// TODAY COST
+// ════════════════════════════════════════════
+async function loadTodayCost() {
+  try {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm   = String(today.getMonth()+1).padStart(2,'0');
+    const dd   = String(today.getDate()).padStart(2,'0');
+    const dateStr = `${yyyy}${mm}${dd}`;
+
+    const data = await apiCall('GET',
+      `/stats?datePreset=today&fields=salesAmt&subtypes=CAMPAIGN`
+    );
+
+    const items = Array.isArray(data) ? data : (data.data || data.items || []);
+    const total = items.reduce((sum, item) => {
+      const amt = item.salesAmt || item.cost || item.totalCost || 0;
+      return sum + parseFloat(amt);
+    }, 0);
+
+    const pill = document.getElementById('costPill');
+    const amt  = document.getElementById('costAmt');
+    amt.textContent = Math.round(total).toLocaleString() + '원';
+    pill.style.display = 'flex';
+  } catch(e) {
+    // 광고비 조회 실패 시 조용히 무시
+    console.log('cost error:', e.message);
   }
 }
 
