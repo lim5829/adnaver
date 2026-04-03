@@ -282,6 +282,71 @@ body {
 .nav-btn.on { color: var(--green); }
 .nav-btn svg { width: 22px; height: 22px; }
 
+/* ── PRESET ── */
+.preset-bar { display: flex; flex-wrap: wrap; gap: 6px; }
+.preset-btn {
+  padding: 8px 14px; border-radius: 8px;
+  border: 1px solid rgba(0,200,83,.25); background: rgba(0,200,83,.08);
+  color: var(--green); font-size: 13px; font-weight: 800; font-family: inherit;
+  cursor: pointer; transition: all .15s;
+}
+.preset-btn:active { transform: scale(.94); background: rgba(0,200,83,.2); }
+.preset-btn.del {
+  border-color: rgba(255,61,90,.25); background: rgba(255,61,90,.08);
+  color: var(--red); font-size: 11px; padding: 8px 10px;
+}
+.preset-add {
+  padding: 8px 12px; border-radius: 8px;
+  border: 1px dashed var(--border); background: transparent;
+  color: var(--dim); font-size: 13px; font-weight: 700; font-family: inherit;
+  cursor: pointer; transition: all .15s;
+}
+.preset-add:active { border-color: var(--green); color: var(--green); }
+
+.preset-modal {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,.7); backdrop-filter: blur(8px);
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.preset-sheet {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 20px 20px 0 0; padding: 24px 20px 40px;
+  width: 100%; max-width: 430px;
+}
+.preset-sheet h3 { font-size: 16px; font-weight: 900; margin-bottom: 6px; }
+.preset-sheet p { font-size: 12px; color: var(--dim); margin-bottom: 20px; }
+.preset-input-row { display: flex; gap: 8px; margin-bottom: 16px; }
+.preset-input {
+  flex: 1; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 13px 14px; color: var(--text);
+  font-size: 16px; font-weight: 800; font-family: inherit; outline: none;
+  transition: border-color .2s;
+}
+.preset-input:focus { border-color: var(--green); }
+.preset-save-btn {
+  padding: 13px 20px; border-radius: 10px; border: none;
+  background: var(--green); color: #000;
+  font-size: 14px; font-weight: 800; font-family: inherit; cursor: pointer;
+}
+.preset-cancel {
+  width: 100%; padding: 13px; border-radius: 10px; border: 1px solid var(--border);
+  background: transparent; color: var(--dim);
+  font-size: 14px; font-weight: 700; font-family: inherit; cursor: pointer;
+}
+.saved-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.saved-preset-item {
+  display: flex; align-items: center; gap: 0;
+  background: var(--s2); border: 1px solid var(--border); border-radius: 8px;
+  overflow: hidden;
+}
+.saved-preset-item span {
+  padding: 8px 12px; font-size: 13px; font-weight: 800; color: var(--text);
+}
+.saved-preset-item button {
+  padding: 8px 10px; border: none; background: transparent;
+  color: var(--red); font-size: 13px; cursor: pointer;
+}
+
 /* demo notice */
 .notice {
   background: rgba(255,171,0,.08); border: 1px solid rgba(255,171,0,.2);
@@ -388,6 +453,20 @@ body {
     <button class="btn btn-s" onclick="enableDemo()">🧪 API 없이 데모 시작</button>
   </div>
 
+</div>
+
+<!-- PRESET MODAL -->
+<div class="preset-modal" id="presetModal" style="display:none" onclick="closePresetModal(event)">
+  <div class="preset-sheet">
+    <h3>⚡ 입찰가 프리셋 관리</h3>
+    <p>자주 쓰는 입찰가를 등록하면 버튼 하나로 바로 적용됩니다</p>
+    <div class="preset-input-row">
+      <input class="preset-input" id="presetInput" type="number" placeholder="금액 입력 (원)" inputmode="numeric" min="70">
+      <button class="preset-save-btn" onclick="savePreset()">추가</button>
+    </div>
+    <div class="saved-presets" id="savedPresetList"></div>
+    <button class="preset-cancel" onclick="document.getElementById('presetModal').style.display='none'">닫기</button>
+  </div>
 </div>
 
 <!-- BOTTOM NAV -->
@@ -669,6 +748,8 @@ async function openCampaign(id, name) {
     }
     groups.sort((a,b) => (gOn(b)?1:0) - (gOn(a)?1:0));
     renderAdGroups(groups);
+    // 프리셋 버튼 렌더링
+    groups.forEach(g => renderPresetBtns(gId(g)));
   } catch(e) {
     document.getElementById('ag-list').innerHTML = `<div class="empty"><div class="empty-ico">⚠️</div><div class="empty-text">${e.message}</div></div>`;
     toast(e.message, 'err');
@@ -707,12 +788,7 @@ function renderAdGroups(groups) {
             <span class="bid-unit">원</span>
           </div>
         </div>
-        <div class="bid-btns">
-          <button class="bid-btn dn" onclick="adj('${id}',-100)">▼100</button>
-          <button class="bid-btn dn" onclick="adj('${id}',-50)">▼50</button>
-          <button class="bid-btn up" onclick="adj('${id}',+50)">▲50</button>
-          <button class="bid-btn up" onclick="adj('${id}',+100)">▲100</button>
-        </div>
+        <div class="bid-btns" id="presets-${id}"></div>
       </div>
       <button class="apply-btn" onclick="applyBid('${id}','${esc(nm)}')">
         ✓ 입찰가 적용
@@ -772,6 +848,77 @@ async function copyWorkerCode() {
   } catch {
     toast('복사 실패 — 코드를 직접 worker.js 파일에서 복사하세요', 'err');
   }
+}
+
+// ════════════════════════════════════════════
+// PRESETS
+// ════════════════════════════════════════════
+let presets = JSON.parse(localStorage.getItem('bidPresets') || '[500,1000,2000,3000]');
+let currentPresetAdId = null;
+
+function savePresetsToStorage() {
+  localStorage.setItem('bidPresets', JSON.stringify(presets));
+}
+
+function renderPresetBtns(id) {
+  const bar = document.getElementById('presets-' + id);
+  if (!bar) return;
+  bar.className = 'preset-bar';
+  bar.innerHTML = presets.map(p => `
+    <button class="preset-btn" onclick="applyPreset('${id}', ${p})">${p.toLocaleString()}원</button>
+  `).join('') + `<button class="preset-add" onclick="openPresetModal('${id}')">＋ 프리셋</button>`;
+}
+
+function openPresetModal(id) {
+  currentPresetAdId = id;
+  document.getElementById('presetInput').value = '';
+  renderSavedPresets();
+  document.getElementById('presetModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('presetInput').focus(), 100);
+}
+
+function closePresetModal(e) {
+  if (e.target.id === 'presetModal') document.getElementById('presetModal').style.display = 'none';
+}
+
+function renderSavedPresets() {
+  const list = document.getElementById('savedPresetList');
+  if (!presets.length) { list.innerHTML = '<div style="font-size:12px;color:var(--dim)">등록된 프리셋이 없습니다</div>'; return; }
+  list.innerHTML = presets.map((p,i) => `
+    <div class="saved-preset-item">
+      <span>${p.toLocaleString()}원</span>
+      <button onclick="deletePreset(${i})">✕</button>
+    </div>`).join('');
+}
+
+function savePreset() {
+  const val = parseInt(document.getElementById('presetInput').value);
+  if (!val || val < 70) { toast('70원 이상 입력하세요', 'err'); return; }
+  if (presets.includes(val)) { toast('이미 등록된 금액이에요', 'err'); return; }
+  presets.push(val);
+  presets.sort((a,b) => a - b);
+  savePresetsToStorage();
+  renderSavedPresets();
+  // 모든 광고그룹 프리셋 버튼 갱신
+  document.querySelectorAll('[id^="presets-"]').forEach(el => {
+    renderPresetBtns(el.id.replace('presets-', ''));
+  });
+  document.getElementById('presetInput').value = '';
+  toast(`✅ ${val.toLocaleString()}원 프리셋 추가`);
+}
+
+function deletePreset(idx) {
+  presets.splice(idx, 1);
+  savePresetsToStorage();
+  renderSavedPresets();
+  document.querySelectorAll('[id^="presets-"]').forEach(el => {
+    renderPresetBtns(el.id.replace('presets-', ''));
+  });
+}
+
+function applyPreset(id, amount) {
+  const inp = document.getElementById('bid-' + id);
+  if (inp) inp.value = amount;
 }
 
 // ════════════════════════════════════════════
