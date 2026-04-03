@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>네이버 광고 입찰 관리</title>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg: #07090f;
+  --s1: #0f1420;
+  --s2: #161d2e;
+  --s3: #1c2540;
+  --border: #1e2d45;
+  --green: #00c853;
+  --blue: #2979ff;
+  --red: #ff3d5a;
+  --yellow: #ffab00;
+  --text: #e8edf8;
+  --dim: #8494b2;
+  --r: 14px;
+}
+
+body {
+  font-family: 'Pretendard', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  max-width: 430px;
+  margin: 0 auto;
+  overflow-x: hidden;
+}
+
+/* ── HEADER ── */
+.hdr {
+  position: sticky; top: 0; z-index: 200;
+  background: rgba(7,9,15,0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+}
+.hdr-top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px 10px;
+}
+.logo { font-size: 18px; font-weight: 900; letter-spacing: -0.8px; }
+.logo em { color: var(--green); font-style: normal; }
+.conn-pill {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 12px;
+  font-size: 11px; font-weight: 700; color: var(--dim);
+  transition: all .3s;
+}
+.conn-pill.on { color: var(--green); border-color: rgba(0,200,83,.25); background: rgba(0,200,83,.07); }
+.conn-pill .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+}
+.conn-pill.on .dot { box-shadow: 0 0 6px var(--green); }
+
+/* tabs */
+.tabs {
+  display: flex; padding: 0 18px 12px; gap: 6px;
+}
+.tab {
+  flex: 1; padding: 9px 0; border-radius: 10px; border: none;
+  background: transparent; color: var(--dim);
+  font-size: 13px; font-weight: 700; font-family: inherit;
+  cursor: pointer; transition: all .2s;
+}
+.tab.on { background: var(--s2); color: var(--text); }
+
+/* ── SCREENS ── */
+.scr { display: none; padding: 16px 18px 110px; }
+.scr.on { display: block; }
+
+/* ── SETUP ── */
+.card {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 20px; margin-bottom: 14px;
+}
+.card-title { font-size: 14px; font-weight: 800; margin-bottom: 4px; }
+.card-sub { font-size: 12px; color: var(--dim); line-height: 1.6; margin-bottom: 18px; }
+
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 11px; font-weight: 700; color: var(--dim); margin-bottom: 6px; letter-spacing: .3px; }
+.field input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 13px 14px; color: var(--text);
+  font-size: 14px; font-family: inherit; outline: none; transition: border-color .2s;
+}
+.field input:focus { border-color: var(--blue); }
+.field input::placeholder { color: var(--s3); }
+
+.proxy-field {
+  background: rgba(41,121,255,.06); border: 1px solid rgba(41,121,255,.2);
+  border-radius: 10px; padding: 13px 14px;
+  font-size: 12px; color: #7ea8ff; line-height: 1.7;
+  margin-bottom: 16px;
+}
+.proxy-field strong { display: block; font-size: 13px; margin-bottom: 4px; color: var(--blue); }
+.proxy-field input {
+  width: 100%; background: transparent; border: none;
+  color: #a0c0ff; font-size: 13px; font-family: 'Courier New', monospace;
+  outline: none; margin-top: 6px; padding: 0;
+}
+
+.btn {
+  width: 100%; padding: 15px; border-radius: 12px; border: none;
+  font-family: inherit; font-size: 14px; font-weight: 800;
+  cursor: pointer; transition: all .18s; letter-spacing: -.2px;
+}
+.btn-g { background: var(--green); color: #000; }
+.btn-g:active { transform: scale(.97); filter: brightness(.9); }
+.btn-s { background: var(--s2); color: var(--text); border: 1px solid var(--border); margin-top: 8px; }
+.btn-s:active { transform: scale(.97); }
+
+.step-list { counter-reset: step; margin-bottom: 18px; }
+.step { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+.step-num {
+  min-width: 24px; height: 24px; border-radius: 50%;
+  background: var(--blue); color: #fff;
+  font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.step p { font-size: 12px; color: var(--dim); line-height: 1.6; }
+.step p strong { color: var(--text); }
+.step a { color: var(--blue); }
+
+/* ── CAMPAIGN ── */
+.section-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.section-label { font-size: 11px; font-weight: 800; color: var(--dim); letter-spacing: .8px; text-transform: uppercase; }
+
+.icon-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: 9px; padding: 7px 12px;
+  color: var(--text); font-size: 12px; font-weight: 700; font-family: inherit;
+  cursor: pointer; transition: all .18s;
+}
+.icon-btn:active { transform: scale(.95); }
+.icon-btn.spin svg { animation: rot .7s linear infinite; }
+@keyframes rot { to { transform: rotate(360deg); } }
+
+.stats {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 16px;
+}
+.stat {
+  background: var(--s1); border: 1px solid var(--border); border-radius: 12px;
+  padding: 13px 10px; text-align: center;
+}
+.stat-v { font-size: 22px; font-weight: 900; letter-spacing: -1px; }
+.stat-l { font-size: 11px; color: var(--dim); margin-top: 2px; font-weight: 600; }
+
+/* campaign rows */
+.c-item {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 16px; margin-bottom: 8px;
+  cursor: pointer; transition: all .2s; gap: 12px;
+}
+.c-item:active { background: var(--s2); transform: scale(.99); }
+.c-left { flex: 1; min-width: 0; }
+.c-name { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 6px; }
+.c-meta { display: flex; gap: 8px; align-items: center; }
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 20px;
+  font-size: 11px; font-weight: 700;
+}
+.badge-on { background: rgba(0,200,83,.12); color: var(--green); }
+.badge-off { background: rgba(132,148,178,.12); color: var(--dim); }
+.c-groups { font-size: 11px; color: var(--dim); font-weight: 600; }
+.c-arrow { color: var(--dim); opacity: .5; }
+
+/* ── ADGROUP ── */
+.back-btn {
+  display: flex; align-items: center; gap: 8px;
+  background: none; border: none; color: var(--blue);
+  font-size: 13px; font-weight: 700; font-family: inherit;
+  cursor: pointer; padding: 0 0 16px; width: 100%;
+}
+
+.ag-title { font-size: 16px; font-weight: 900; margin-bottom: 4px; line-height: 1.3; }
+.ag-sub { font-size: 12px; color: var(--dim); margin-bottom: 16px; }
+
+.ag-item {
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 16px; margin-bottom: 10px;
+  transition: border-color .2s;
+}
+.ag-item.saving { opacity: .5; pointer-events: none; }
+.ag-item.saved { border-color: var(--green); }
+
+.ag-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 8px; }
+.ag-name { font-size: 13px; font-weight: 700; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* bid control */
+.bid-wrap {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px; margin-bottom: 10px;
+}
+.bid-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.bid-label { font-size: 11px; font-weight: 700; color: var(--dim); }
+.bid-val-wrap { display: flex; align-items: baseline; gap: 3px; }
+.bid-val {
+  background: transparent; border: none; outline: none;
+  color: var(--text); font-size: 20px; font-weight: 900;
+  font-family: inherit; width: 90px; text-align: right;
+}
+.bid-unit { font-size: 13px; color: var(--dim); font-weight: 700; }
+
+.bid-btns { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+.bid-btn {
+  padding: 9px 0; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--s2); color: var(--dim);
+  font-size: 12px; font-weight: 800; font-family: inherit; cursor: pointer;
+  transition: all .15s;
+}
+.bid-btn.dn { color: var(--red); border-color: rgba(255,61,90,.2); }
+.bid-btn.up { color: var(--green); border-color: rgba(0,200,83,.2); }
+.bid-btn:active { transform: scale(.94); }
+
+.apply-btn {
+  width: 100%; padding: 12px; border-radius: 10px; border: none;
+  background: var(--green); color: #000;
+  font-size: 13px; font-weight: 800; font-family: inherit; cursor: pointer;
+  transition: all .18s; letter-spacing: -.2px;
+}
+.apply-btn:active { transform: scale(.97); filter: brightness(.85); }
+
+/* ── LOADER / EMPTY ── */
+.loader { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 70px 20px; gap: 14px; }
+.spin-ring {
+  width: 36px; height: 36px; border: 3px solid var(--border);
+  border-top-color: var(--green); border-radius: 50%;
+  animation: rot .75s linear infinite;
+}
+.loader-text { font-size: 13px; color: var(--dim); font-weight: 600; }
+.empty { text-align: center; padding: 70px 20px; }
+.empty-ico { font-size: 42px; margin-bottom: 12px; }
+.empty-text { font-size: 14px; color: var(--dim); line-height: 1.6; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 90px; left: 50%;
+  transform: translateX(-50%) translateY(14px);
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 20px;
+  font-size: 13px; font-weight: 700;
+  opacity: 0; pointer-events: none; z-index: 999;
+  transition: all .25s; white-space: nowrap;
+  max-width: calc(100vw - 40px);
+}
+.toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+.toast.ok { border-color: rgba(0,200,83,.4); color: var(--green); }
+.toast.err { border-color: rgba(255,61,90,.4); color: var(--red); }
+
+/* ── BOTTOM NAV ── */
+.bnav {
+  position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 100%; max-width: 430px;
+  background: rgba(7,9,15,.95); backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  display: flex; padding: 10px 24px max(20px, env(safe-area-inset-bottom));
+  gap: 6px;
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 8px 0; border-radius: 10px; border: none;
+  background: transparent; color: var(--dim);
+  font-size: 11px; font-weight: 700; font-family: inherit; cursor: pointer;
+  transition: all .2s;
+}
+.nav-btn.on { color: var(--green); }
+.nav-btn svg { width: 22px; height: 22px; }
+
+/* demo notice */
+.notice {
+  background: rgba(255,171,0,.08); border: 1px solid rgba(255,171,0,.2);
+  border-radius: 10px; padding: 10px 14px;
+  font-size: 12px; color: #ffd54f; line-height: 1.6; margin-bottom: 14px;
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="logo">NAD <em>BID</em></div>
+    <div class="conn-pill" id="connPill"><span class="dot"></span><span id="connText">미연결</span></div>
+  </div>
+  <div class="tabs">
+    <button class="tab on" onclick="goTab('campaign')">캠페인</button>
+    <button class="tab" onclick="goTab('setup')">API 설정</button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════ CAMPAIGN SCREEN ═══════════════ -->
+<div class="scr on" id="scr-campaign">
+
+  <!-- Adgroup sub-view -->
+  <div id="v-ag" style="display:none">
+    <button class="back-btn" onclick="backToCampaigns()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      캠페인 목록으로
+    </button>
+    <div class="ag-title" id="ag-title"></div>
+    <div class="ag-sub" id="ag-sub"></div>
+    <div id="ag-list"></div>
+  </div>
+
+  <!-- Campaign list view -->
+  <div id="v-camp">
+    <div class="notice" id="demo-notice" style="display:none">
+      🧪 <strong>데모 모드</strong> — 샘플 데이터입니다. 실제 API 키를 입력하면 실계정 데이터가 표시됩니다.
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-v" id="s-total">—</div><div class="stat-l">캠페인</div></div>
+      <div class="stat"><div class="stat-v" style="color:var(--green)" id="s-active">—</div><div class="stat-l">운영중</div></div>
+      <div class="stat"><div class="stat-v" style="color:var(--blue)" id="s-groups">—</div><div class="stat-l">광고그룹</div></div>
+    </div>
+
+    <div class="section-hdr">
+      <span class="section-label">캠페인</span>
+      <button class="icon-btn" id="refBtn" onclick="loadCampaigns()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="14" height="14"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        새로고침
+      </button>
+    </div>
+    <div id="c-list"></div>
+  </div>
+</div>
+
+<!-- ═══════════════ SETUP SCREEN ═══════════════ -->
+<div class="scr" id="scr-setup">
+
+  <div class="card">
+    <div class="card-title">🔗 Cloudflare Worker 프록시 URL</div>
+    <div class="card-sub">CORS 우회를 위해 프록시가 필요합니다. 아래 가이드로 1분 만에 설정 가능합니다.</div>
+
+    <div class="proxy-field">
+      <strong>📡 프록시 Worker URL</strong>
+      배포 후 Worker URL을 여기에 입력하세요
+      <input type="url" id="inp-proxy" placeholder="https://your-worker.workers.dev" />
+    </div>
+
+    <div class="step-list">
+      <div class="step"><div class="step-num">1</div><p><a href="https://workers.cloudflare.com" target="_blank"><strong>workers.cloudflare.com</strong></a> 에서 무료 가입 (이미 있으면 로그인)</p></div>
+      <div class="step"><div class="step-num">2</div><p><strong>Workers & Pages → Create → Hello World 템플릿 선택</strong></p></div>
+      <div class="step"><div class="step-num">3</div><p>아래 <strong>"Worker 코드 복사"</strong> 버튼 클릭 → 에디터에 붙여넣기 → <strong>Deploy</strong></p></div>
+      <div class="step"><div class="step-num">4</div><p>배포 후 나오는 <strong>*.workers.dev URL</strong>을 위 입력칸에 붙여넣기</p></div>
+    </div>
+
+    <button class="btn btn-s" onclick="copyWorkerCode()">📋 Worker 코드 복사</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔐 네이버 광고 API 인증</div>
+    <div class="card-sub">네이버 검색광고 시스템 → 도구 → API 관리에서 발급</div>
+
+    <div class="field">
+      <label>ACCESS LICENSE KEY</label>
+      <input type="text" id="inp-license" placeholder="01000000XXXXXXXX..." autocomplete="off" />
+    </div>
+    <div class="field">
+      <label>SECRET KEY</label>
+      <input type="password" id="inp-secret" placeholder="시크릿 키 입력" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label>CUSTOMER ID</label>
+      <input type="text" id="inp-customer" placeholder="숫자 형식 고객 ID" autocomplete="off" inputmode="numeric" />
+    </div>
+
+    <button class="btn btn-g" onclick="saveAndConnect()">🔌 저장 &amp; 연결</button>
+    <button class="btn btn-s" onclick="enableDemo()">🧪 API 없이 데모 시작</button>
+  </div>
+
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bnav">
+  <button class="nav-btn on" id="nav-campaign" onclick="goTab('campaign')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+    캠페인
+  </button>
+  <button class="nav-btn" id="nav-setup" onclick="goTab('setup')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 010 14.14M4.93 4.93a10 10 0 000 14.14"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+    설정
+  </button>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════
+let CFG = { proxy: '', license: '', secret: '', customer: '' };
+let DEMO_MODE = false;
+let campaigns = [];
+let currentCampaign = null;
+
+// ════════════════════════════════════════════
+// DEMO DATA
+// ════════════════════════════════════════════
+const DEMO = {
+  campaigns: [
+    { campaignId:'c001', campaignName:'[검색] 브랜드 키워드 캠페인', userLock:'NONE', adGroupCount:3 },
+    { campaignId:'c002', campaignName:'[검색] 일반 키워드 캠페인', userLock:'NONE', adGroupCount:5 },
+    { campaignId:'c003', campaignName:'[쇼핑] 상품 광고 캠페인', userLock:'CAMPAIGN_PAUSE', adGroupCount:2 },
+    { campaignId:'c004', campaignName:'[브랜드검색] 브랜드 검색광고', userLock:'NONE', adGroupCount:1 },
+  ],
+  adgroups: {
+    c001: [
+      { adGroupId:'ag01', adGroupName:'브랜드명 그룹', userLock:'NONE', bidAmt:1200 },
+      { adGroupId:'ag02', adGroupName:'브랜드+제품명 그룹', userLock:'NONE', bidAmt:950 },
+      { adGroupId:'ag03', adGroupName:'경쟁사 비교 그룹', userLock:'AD_GROUP_PAUSE', bidAmt:700 },
+    ],
+    c002: [
+      { adGroupId:'ag11', adGroupName:'핵심 키워드 그룹', userLock:'NONE', bidAmt:1500 },
+      { adGroupId:'ag12', adGroupName:'롱테일 키워드 그룹', userLock:'NONE', bidAmt:600 },
+      { adGroupId:'ag13', adGroupName:'시즌 프로모션 그룹', userLock:'NONE', bidAmt:2000 },
+      { adGroupId:'ag14', adGroupName:'신상품 런칭 그룹', userLock:'AD_GROUP_PAUSE', bidAmt:800 },
+      { adGroupId:'ag15', adGroupName:'재구매 타겟 그룹', userLock:'NONE', bidAmt:1100 },
+    ],
+    c003: [
+      { adGroupId:'ag21', adGroupName:'베스트셀러 상품 그룹', userLock:'CAMPAIGN_PAUSE', bidAmt:400 },
+      { adGroupId:'ag22', adGroupName:'신규 상품 그룹', userLock:'CAMPAIGN_PAUSE', bidAmt:350 },
+    ],
+    c004: [
+      { adGroupId:'ag31', adGroupName:'브랜드 검색 메인 그룹', userLock:'NONE', bidAmt:3000 },
+    ],
+  }
+};
+
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
+window.addEventListener('load', () => {
+  const saved = localStorage.getItem('nadcfg');
+  if (saved) {
+    CFG = JSON.parse(saved);
+    document.getElementById('inp-proxy').value    = CFG.proxy    || '';
+    document.getElementById('inp-license').value  = CFG.license  || '';
+    document.getElementById('inp-secret').value   = CFG.secret   || '';
+    document.getElementById('inp-customer').value = CFG.customer || '';
+    if (CFG.license && CFG.proxy) {
+      setConnected(true);
+      loadCampaigns();
+    }
+  }
+});
+
+// ════════════════════════════════════════════
+// UI HELPERS
+// ════════════════════════════════════════════
+function goTab(name) {
+  ['campaign','setup'].forEach(n => {
+    document.getElementById('scr-'+n).classList.toggle('on', n===name);
+    document.getElementById('nav-'+n).classList.toggle('on', n===name);
+    document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('on', (i===0 && name==='campaign')||(i===1 && name==='setup')));
+  });
+}
+
+function setConnected(on) {
+  const pill = document.getElementById('connPill');
+  const txt  = document.getElementById('connText');
+  pill.classList.toggle('on', on);
+  txt.textContent = on ? (DEMO_MODE ? '데모' : '연결됨') : '미연결';
+}
+
+let toastTimer;
+function toast(msg, type='ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast on ${type}`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.className = 'toast', 2800);
+}
+
+function setSpin(on) {
+  document.getElementById('refBtn').classList.toggle('spin', on);
+}
+
+function loader(target) {
+  document.getElementById(target).innerHTML = `<div class="loader"><div class="spin-ring"></div><div class="loader-text">불러오는 중...</div></div>`;
+}
+
+// ════════════════════════════════════════════
+// API REQUEST (via Cloudflare Worker proxy)
+// ════════════════════════════════════════════
+async function apiCall(method, path, body=null) {
+  if (!CFG.proxy) throw new Error('프록시 URL이 설정되지 않았습니다');
+  const proxyUrl = CFG.proxy.replace(/\/$/, '') + '/proxy' + path;
+  const opts = {
+    method,
+    headers: {
+      'Content-Type':  'application/json',
+      'X-API-KEY':     CFG.license,
+      'X-SECRET':      CFG.secret,
+      'X-CUSTOMER':    CFG.customer,
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(proxyUrl, opts);
+  if (!res.ok) {
+    const err = await res.text().catch(()=>'');
+    throw new Error(`API ${res.status}: ${err.slice(0,120)}`);
+  }
+  return res.json();
+}
+
+// ════════════════════════════════════════════
+// CONNECT / SAVE
+// ════════════════════════════════════════════
+async function saveAndConnect() {
+  const proxy    = document.getElementById('inp-proxy').value.trim();
+  const license  = document.getElementById('inp-license').value.trim();
+  const secret   = document.getElementById('inp-secret').value.trim();
+  const customer = document.getElementById('inp-customer').value.trim();
+
+  if (!proxy)    { toast('Worker 프록시 URL을 입력해주세요', 'err'); return; }
+  if (!license)  { toast('액세스 라이선스 키를 입력해주세요', 'err'); return; }
+  if (!secret)   { toast('시크릿 키를 입력해주세요', 'err'); return; }
+  if (!customer) { toast('고객 ID를 입력해주세요', 'err'); return; }
+
+  CFG = { proxy, license, secret, customer };
+  localStorage.setItem('nadcfg', JSON.stringify(CFG));
+  DEMO_MODE = false;
+  setConnected(true);
+  toast('설정이 저장되었습니다');
+  goTab('campaign');
+  loadCampaigns();
+}
+
+function enableDemo() {
+  DEMO_MODE = true;
+  setConnected(true);
+  goTab('campaign');
+  loadCampaigns();
+}
+
+// ════════════════════════════════════════════
+// LOAD CAMPAIGNS
+// ════════════════════════════════════════════
+async function loadCampaigns() {
+  setSpin(true);
+  document.getElementById('demo-notice').style.display = 'none';
+  loader('c-list');
+
+  try {
+    if (DEMO_MODE) {
+      await delay(700);
+      campaigns = DEMO.campaigns;
+      document.getElementById('demo-notice').style.display = 'block';
+    } else {
+      const data = await apiCall('GET', '/ncc/campaigns');
+      // 네이버 API 응답 구조에 따라 조정
+      campaigns = Array.isArray(data) ? data : (data.campaigns || []);
+    }
+    renderCampaigns();
+  } catch(e) {
+    document.getElementById('c-list').innerHTML = `
+      <div class="empty">
+        <div class="empty-ico">⚠️</div>
+        <div class="empty-text">${e.message}<br><br>
+          <small>프록시 URL이 올바른지,<br>API 키가 맞는지 확인해주세요</small>
+        </div>
+      </div>`;
+    toast(e.message, 'err');
+  }
+  setSpin(false);
+}
+
+function cName(c)  { return c.campaignName || c.name || c.nccCampaignId || '-'; }
+function cId(c)    { return c.nccCampaignId || c.campaignId || c.id || ''; }
+function cOn(c)    { const s = c.userLock || c.status || ''; return s === 'NONE' || s === 'ELIGIBLE' || s === 'operating'; }
+function cGroups(c){ return c.adGroupCount ?? c.adgroupCount ?? '?'; }
+
+function gName(g)  { return g.adGroupName || g.name || g.adgroupName || g.nccAdgroupId || '-'; }
+function gId(g)    { return g.nccAdgroupId || g.adGroupId || g.adgroupId || g.id || ''; }
+function gOn(g)    { const s = g.userLock || g.status || ''; return s === 'NONE' || s === 'ELIGIBLE' || s === 'operating'; }
+function gBid(g)   { return g.bidAmt || g.bid || g.pcBidAmt || 70; }
+
+function renderCampaigns() {
+  const active = campaigns.filter(c => cOn(c)).length;
+  const groups = campaigns.reduce((s,c) => s + (parseInt(cGroups(c))||0), 0);
+  document.getElementById('s-total').textContent  = campaigns.length;
+  document.getElementById('s-active').textContent = active;
+  document.getElementById('s-groups').textContent = groups || '?';
+
+  if (!campaigns.length) {
+    document.getElementById('c-list').innerHTML = '<div class="empty"><div class="empty-ico">📭</div><div class="empty-text">캠페인이 없습니다</div></div>';
+    return;
+  }
+
+  document.getElementById('c-list').innerHTML = campaigns.map(c => {
+    const on = cOn(c);
+    return `
+    <div class="c-item" onclick="openCampaign('${esc(cId(c))}','${esc(cName(c))}')">
+      <div class="c-left">
+        <div class="c-name">${cName(c)}</div>
+        <div class="c-meta">
+          <span class="badge ${on?'badge-on':'badge-off'}">${on?'● 운영중':'■ 중지'}</span>
+          <span class="c-groups">그룹 ${cGroups(c)}개</span>
+        </div>
+      </div>
+      <div class="c-arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════
+// OPEN CAMPAIGN → AD GROUPS
+// ════════════════════════════════════════════
+async function openCampaign(id, name) {
+  currentCampaign = id;
+  document.getElementById('v-camp').style.display = 'none';
+  document.getElementById('v-ag').style.display   = 'block';
+  document.getElementById('ag-title').textContent = name;
+  document.getElementById('ag-sub').textContent   = '광고그룹별 입찰가를 조정하세요';
+  loader('ag-list');
+
+  try {
+    let groups;
+    if (DEMO_MODE) {
+      await delay(500);
+      groups = DEMO.adgroups[id] || [];
+    } else {
+      // 파라미터 없이 전체 불러온 후 클라이언트 필터링
+      const data = await apiCall('GET', '/ncc/adgroups');
+      const all = Array.isArray(data) ? data : (data.adGroups || data.adgroups || []);
+      if (all.length > 0) {
+        const sample = all[0];
+        // 캠페인ID 필드 자동 감지
+        // nccCampaignId 필드로 필터링
+        groups = all.filter(g => {
+          const c = g.nccCampaignId || g.campaignId || g.campaign_id || '';
+          return String(c) === String(id);
+        });
+        window._dbgSample = JSON.stringify(sample).slice(0, 200);
+      } else {
+        groups = [];
+      }
+    }
+    // 원본 데이터 저장 (PUT 시 전체 필드 전송용)
+    window._adgroupRaw = {};
+    groups.forEach(g => { window._adgroupRaw[gId(g)] = g; });
+    if (groups.length > 0) {
+      const keys = Object.keys(groups[0]).slice(0,8).join(', ');
+      toast(`✅ 그룹 ${groups.length}개 | ${keys}`, 'ok');
+    } else {
+      const dbg = window._dbgSample || '응답 없음';
+      toast(`0개: ${dbg.slice(0,80)}`, 'err');
+    }
+    renderAdGroups(groups);
+  } catch(e) {
+    document.getElementById('ag-list').innerHTML = `<div class="empty"><div class="empty-ico">⚠️</div><div class="empty-text">${e.message}</div></div>`;
+    toast(e.message, 'err');
+  }
+}
+
+function backToCampaigns() {
+  document.getElementById('v-camp').style.display = 'block';
+  document.getElementById('v-ag').style.display   = 'none';
+}
+
+// ════════════════════════════════════════════
+// RENDER AD GROUPS
+// ════════════════════════════════════════════
+function renderAdGroups(groups) {
+  if (!groups.length) {
+    document.getElementById('ag-list').innerHTML = '<div class="empty"><div class="empty-ico">📭</div><div class="empty-text">광고그룹이 없습니다</div></div>';
+    return;
+  }
+  document.getElementById('ag-list').innerHTML = groups.map(g => {
+    const on  = gOn(g);
+    const id  = gId(g);
+    const nm  = gName(g);
+    const bid = gBid(g);
+    return `
+    <div class="ag-item" id="ag-${id}">
+      <div class="ag-hdr">
+        <div class="ag-name">${nm}</div>
+        <span class="badge ${on?'badge-on':'badge-off'}">${on?'운영중':'중지'}</span>
+      </div>
+      <div class="bid-wrap">
+        <div class="bid-top">
+          <span class="bid-label">💰 입찰가</span>
+          <div class="bid-val-wrap">
+            <input class="bid-val" id="bid-${id}" type="number" value="${bid}" min="70" step="10" inputmode="numeric">
+            <span class="bid-unit">원</span>
+          </div>
+        </div>
+        <div class="bid-btns">
+          <button class="bid-btn dn" onclick="adj('${id}',-100)">▼100</button>
+          <button class="bid-btn dn" onclick="adj('${id}',-50)">▼50</button>
+          <button class="bid-btn up" onclick="adj('${id}',+50)">▲50</button>
+          <button class="bid-btn up" onclick="adj('${id}',+100)">▲100</button>
+        </div>
+      </div>
+      <button class="apply-btn" onclick="applyBid('${id}','${esc(nm)}')">
+        ✓ 입찰가 적용
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function adj(id, delta) {
+  const inp = document.getElementById('bid-'+id);
+  inp.value = Math.max(70, (parseInt(inp.value)||70) + delta);
+}
+
+// ════════════════════════════════════════════
+// APPLY BID
+// ════════════════════════════════════════════
+async function applyBid(id, name) {
+  const inp = document.getElementById('bid-'+id);
+  const bid = parseInt(inp.value);
+  if (!bid || bid < 70) { toast('최소 입찰가는 70원입니다', 'err'); return; }
+
+  const card = document.getElementById('ag-'+id);
+  card.classList.add('saving');
+
+  try {
+    if (DEMO_MODE) {
+      await delay(800);
+    } else {
+      // 네이버 광고그룹 입찰가 수정 API - 원본 객체에 bidAmt만 교체해서 전송
+      const raw = (window._adgroupRaw && window._adgroupRaw[id]) || {};
+      const payload = Object.assign({}, raw, {
+        adGroupId: id,
+        bidAmt: bid,
+        pcBidAmt: bid,
+      });
+      await apiCall('PUT', `/ncc/adgroups/${id}`, payload);
+    }
+    card.classList.remove('saving');
+    card.classList.add('saved');
+    setTimeout(() => card.classList.remove('saved'), 2000);
+    toast(`✅ "${name}" → ${bid.toLocaleString()}원 적용${DEMO_MODE?' (데모)':''}`);
+  } catch(e) {
+    card.classList.remove('saving');
+    toast('❌ 적용 실패: ' + e.message, 'err');
+  }
+}
+
+// ════════════════════════════════════════════
+// WORKER CODE COPY
+// ════════════════════════════════════════════
+const WORKER_CODE = "export default {\n  async fetch(request, env, ctx) {\n    if (request.method === 'OPTIONS') {\n      return new Response(null, {\n        headers: {\n          'Access-Control-Allow-Origin': '*',\n          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',\n          'Access-Control-Allow-Headers': 'Content-Type, X-API-KEY, X-SECRET, X-CUSTOMER',\n        },\n      });\n    }\n    const url = new URL(request.url);\n    if (!url.pathname.startsWith('/proxy/')) return new Response('Not found', { status: 404 });\n\n    const apiPath = url.pathname.replace('/proxy', '') + url.search;\n    const license  = request.headers.get('X-API-KEY')  || '';\n    const secret   = request.headers.get('X-SECRET')   || '';\n    const customer = request.headers.get('X-CUSTOMER') || '';\n    if (!license || !secret || !customer) return json({ error: 'Missing credentials' }, 400);\n\n    const timestamp = Date.now().toString();\n    const message   = timestamp + '.' + request.method + '.' + apiPath.split('?')[0];\n    const keyData   = new TextEncoder().encode(secret);\n    const msgData   = new TextEncoder().encode(message);\n    const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);\n    const sigBuf    = await crypto.subtle.sign('HMAC', cryptoKey, msgData);\n    const signature = btoa(String.fromCharCode(...new Uint8Array(sigBuf)));\n\n    const headers = {\n      'Content-Type': 'application/json; charset=UTF-8',\n      'X-Timestamp':  timestamp,\n      'X-API-KEY':    license,\n      'X-Customer':   customer,\n      'X-Signature':  signature,\n    };\n    const body = (request.method !== 'GET' && request.method !== 'HEAD') ? await request.text() : undefined;\n    const apiRes = await fetch('https://api.naver.com' + apiPath, { method: request.method, headers, body });\n    const resBody = await apiRes.text();\n    return new Response(resBody, {\n      status: apiRes.status,\n      headers: { 'Content-Type': 'application/json; charset=UTF-8', 'Access-Control-Allow-Origin': '*' },\n    });\n  },\n};\nfunction json(obj, status=200) {\n  return new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } });\n}";
+
+async function copyWorkerCode() {
+  try {
+    await navigator.clipboard.writeText(WORKER_CODE);
+    toast('✅ Worker 코드가 클립보드에 복사되었습니다');
+  } catch {
+    toast('복사 실패 — 코드를 직접 worker.js 파일에서 복사하세요', 'err');
+  }
+}
+
+// ════════════════════════════════════════════
+// UTILS
+// ════════════════════════════════════════════
+const delay = ms => new Promise(r => setTimeout(r, ms));
+const esc = s => (s||'').replace(/'/g,"&#39;").replace(/"/g,"&quot;");
+</script>
+</body>
+</html>
