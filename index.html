@@ -888,16 +888,15 @@ async function loadTodayCost() {
       if (!id) continue;
       try {
         const data = await apiCall('GET',
-          `/stats?id=${id}&type=CAMPAIGN&timeRange=${encodeURIComponent(JSON.stringify({since:dateStr,until:dateStr}))}&fields=salesAmt,clkCnt,impCnt`
+          `/stats?id=${id}&type=CAMPAIGN&datePreset=yesterday&fields=salesAmt,clkCnt,impCnt`
         );
-        const items = Array.isArray(data) ? data : (data.data || data.report || []);
-        // 첫 캠페인 응답 디버그
+        const items = Array.isArray(data) ? data : (data.data || data.report || data.stat || []);
         if (total === 0 && items.length > 0) {
           alert('통계 응답: ' + JSON.stringify(items[0]).slice(0, 400));
         }
         items.forEach(item => {
           const keys = Object.keys(item);
-          const costKey = keys.find(k => k.toLowerCase().includes('cost') || k.toLowerCase().includes('sales') || k.toLowerCase().includes('spend') || k.toLowerCase().includes('charge'));
+          const costKey = keys.find(k => ['salesamt','cost','totalcost','spend','charge','adcost'].includes(k.toLowerCase()));
           total += parseFloat(costKey ? item[costKey] : 0);
         });
       } catch(e2) { alert('캠페인 통계 오류: ' + e2.message); }
