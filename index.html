@@ -33,6 +33,26 @@ body {
   overflow-x: hidden;
 }
 
+/* ── LOCK ── */
+.pin-dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 2px solid var(--border); background: transparent;
+  transition: all .15s;
+}
+.pin-dot.filled { background: var(--green); border-color: var(--green); }
+.pin-dot.error  { background: var(--red);   border-color: var(--red); }
+.pin-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 12px; width: 240px;
+}
+.pin-btn {
+  height: 68px; border-radius: 16px;
+  border: 1px solid var(--border); background: var(--s1);
+  color: var(--text); font-size: 22px; font-weight: 800;
+  font-family: inherit; cursor: pointer; transition: all .15s;
+}
+.pin-btn:active { background: var(--s2); transform: scale(.94); }
+
 /* ── HEADER ── */
 .hdr {
   position: sticky; top: 0; z-index: 200;
@@ -372,6 +392,45 @@ body {
 </head>
 <body>
 
+<!-- LOCK SCREEN -->
+<div id="lockScreen" style="
+  position:fixed;inset:0;z-index:9999;
+  background:var(--bg);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  padding:40px 32px;
+">
+  <div style="font-size:36px;margin-bottom:12px">🔐</div>
+  <div style="font-size:20px;font-weight:900;margin-bottom:6px;letter-spacing:-.5px">ADnaver dal.pado</div>
+  <div style="font-size:13px;color:var(--dim);margin-bottom:32px">비밀번호를 입력하세요</div>
+
+  <div style="display:flex;gap:10px;margin-bottom:24px" id="pinDots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+
+  <div id="pinError" style="font-size:12px;color:var(--red);height:18px;margin-bottom:12px"></div>
+
+  <div class="pin-grid">
+    <button class="pin-btn" onclick="pinInput('1')">1</button>
+    <button class="pin-btn" onclick="pinInput('2')">2</button>
+    <button class="pin-btn" onclick="pinInput('3')">3</button>
+    <button class="pin-btn" onclick="pinInput('4')">4</button>
+    <button class="pin-btn" onclick="pinInput('5')">5</button>
+    <button class="pin-btn" onclick="pinInput('6')">6</button>
+    <button class="pin-btn" onclick="pinInput('7')">7</button>
+    <button class="pin-btn" onclick="pinInput('8')">8</button>
+    <button class="pin-btn" onclick="pinInput('9')">9</button>
+    <button class="pin-btn" style="opacity:0;pointer-events:none"></button>
+    <button class="pin-btn" onclick="pinInput('0')">0</button>
+    <button class="pin-btn" onclick="pinDelete()">⌫</button>
+  </div>
+
+  <div id="pinSetupMsg" style="font-size:12px;color:var(--dim);margin-top:20px;text-align:center;line-height:1.6"></div>
+</div>
+
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-top">
@@ -411,7 +470,7 @@ body {
     <div class="stats">
       <div class="stat"><div class="stat-v" id="s-total">—</div><div class="stat-l">캠페인</div></div>
       <div class="stat"><div class="stat-v" style="color:var(--green)" id="s-active">—</div><div class="stat-l">운영중</div></div>
-      <div class="stat"><div class="stat-v" style="color:var(--blue)" id="s-groups">—</div><div class="stat-l">광고그룹</div></div>
+
     </div>
 
     <div class="section-hdr">
@@ -434,7 +493,6 @@ body {
       <button class="rank-tab on" id="rtab-today" onclick="switchReportDate('today')">오늘</button>
       <button class="rank-tab" id="rtab-yesterday" onclick="switchReportDate('yesterday')">어제</button>
       <button class="rank-tab" id="rtab-month" onclick="switchReportDate('month')">이번달</button>
-      <button class="rank-tab" id="rtab-lastmonth" onclick="switchReportDate('lastmonth')">지난달</button>
       <button class="rank-tab" id="rtab-lastmonth" onclick="switchReportDate('lastmonth')">지난달</button>
     </div>
     <div class="section-hdr">
@@ -588,9 +646,90 @@ const DEMO = {
 };
 
 // ════════════════════════════════════════════
+// LOCK SCREEN
+// ════════════════════════════════════════════
+const DEFAULT_PIN = '0000';
+let pinBuffer = '';
+let pinMode = 'verify'; // 'verify' | 'setup1' | 'setup2'
+let pinTemp = '';
+
+function initLock() {
+  const saved = localStorage.getItem('appPin');
+  if (!saved) {
+    // 최초: PIN 설정 모드
+    pinMode = 'setup1';
+    document.getElementById('pinSetupMsg').textContent = '사용할 4자리 비밀번호를 입력하세요';
+  } else {
+    pinMode = 'verify';
+    document.getElementById('pinSetupMsg').textContent = '';
+  }
+}
+
+function pinInput(digit) {
+  if (pinBuffer.length >= 4) return;
+  pinBuffer += digit;
+  updatePinDots();
+  if (pinBuffer.length === 4) {
+    setTimeout(() => checkPin(), 150);
+  }
+}
+
+function pinDelete() {
+  pinBuffer = pinBuffer.slice(0, -1);
+  updatePinDots();
+}
+
+function updatePinDots(state = '') {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('pd' + i);
+    dot.className = 'pin-dot' + (i < pinBuffer.length ? (state ? ' ' + state : ' filled') : '');
+  }
+}
+
+function checkPin() {
+  if (pinMode === 'verify') {
+    const saved = localStorage.getItem('appPin') || DEFAULT_PIN;
+    if (pinBuffer === saved) {
+      document.getElementById('lockScreen').style.display = 'none';
+    } else {
+      updatePinDots('error');
+      document.getElementById('pinError').textContent = '비밀번호가 틀렸습니다';
+      setTimeout(() => {
+        pinBuffer = '';
+        updatePinDots();
+        document.getElementById('pinError').textContent = '';
+      }, 800);
+    }
+  } else if (pinMode === 'setup1') {
+    pinTemp = pinBuffer;
+    pinBuffer = '';
+    updatePinDots();
+    pinMode = 'setup2';
+    document.getElementById('pinSetupMsg').textContent = '한 번 더 입력하세요';
+  } else if (pinMode === 'setup2') {
+    if (pinBuffer === pinTemp) {
+      localStorage.setItem('appPin', pinBuffer);
+      document.getElementById('lockScreen').style.display = 'none';
+    } else {
+      updatePinDots('error');
+      document.getElementById('pinError').textContent = '비밀번호가 일치하지 않습니다';
+      setTimeout(() => {
+        pinBuffer = ''; pinTemp = '';
+        updatePinDots();
+        pinMode = 'setup1';
+        document.getElementById('pinError').textContent = '';
+        document.getElementById('pinSetupMsg').textContent = '사용할 4자리 비밀번호를 입력하세요';
+      }, 800);
+    }
+  }
+  pinBuffer = '';
+}
+
+// ════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════
 window.addEventListener('load', () => {
+  initLock();
   const saved = localStorage.getItem('nadcfg');
   if (saved) {
     CFG = JSON.parse(saved);
@@ -808,13 +947,7 @@ async function openCampaign(id, name) {
     window._adgroupRaw = {};
     groups.forEach(g => { window._adgroupRaw[gId(g)] = g; });
 
-    if (groups.length > 0) {
-      const keys = Object.keys(groups[0]).slice(0,8).join(', ');
-      toast(`✅ 그룹 ${groups.length}개 | ${keys}`, 'ok');
-    } else {
-      const dbg = window._dbgSample || '응답 없음';
-      toast(`0개: ${dbg.slice(0,80)}`, 'err');
-    }
+
     groups.sort((a,b) => (gOn(b)?1:0) - (gOn(a)?1:0));
     renderAdGroups(groups);
     // 프리셋 버튼 렌더링
@@ -930,7 +1063,6 @@ function switchReportDate(preset) {
   document.getElementById('rtab-today').classList.toggle('on', preset === 'today');
   document.getElementById('rtab-yesterday').classList.toggle('on', preset === 'yesterday');
   document.getElementById('rtab-month').classList.toggle('on', preset === 'month');
-  document.getElementById('rtab-lastmonth').classList.toggle('on', preset === 'lastmonth');
   document.getElementById('rtab-lastmonth').classList.toggle('on', preset === 'lastmonth');
   const labels = { today: '오늘 총 광고비', yesterday: '어제 총 광고비', month: '이번달 총 광고비', lastmonth: '지난달 총 광고비' };
   document.getElementById('report-total-label').textContent = labels[preset];
