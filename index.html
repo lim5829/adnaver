@@ -809,6 +809,8 @@ function renderCampaigns() {
       </div>
     </div>`;
   }).join('');
+  // 기본 펼침
+  campaigns.forEach(c => toggleAccordion(cId(c)));
 }
 
 async function toggleAccordion(id) {
