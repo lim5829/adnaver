@@ -1231,12 +1231,14 @@ async function toggleAdGroup(id, name, turnOn) {
       await delay(600);
     } else {
       const raw = (window._adgroupRaw && window._adgroupRaw[id]) || {};
-      // 네이버 API: pause 엔드포인트로 ON/OFF 제어
-      if (turnOn) {
-        await apiCall('PUT', `/ncc/adgroups/${id}/resume`, { ids: [id] });
-      } else {
-        await apiCall('PUT', `/ncc/adgroups/${id}/pause`, { ids: [id] });
-      }
+      // userLock 필드로 ON/OFF - 원본 필드 전체 유지하고 userLock만 변경
+      const payload = Object.assign({}, raw, {
+        nccAdgroupId: id,
+        userLock: turnOn ? 'NONE' : 'AD_GROUP_PAUSE',
+      });
+      // adGroupId, nccAdgroupId 둘 다 포함
+      payload.adGroupId = id;
+      await apiCall('PUT', `/ncc/adgroups/${id}`, payload);
     }
 
     // 카드 상태 업데이트
