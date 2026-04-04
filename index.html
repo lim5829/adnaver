@@ -453,6 +453,27 @@ body {
 
     </div>
 
+    <!-- 전체 일괄 변경 -->
+    <div class="bulk-inline" id="global-bulk-bar" style="margin-bottom:12px">
+      <div class="bulk-inline-top">
+        <span style="font-size:13px;font-weight:800">⚡ 운영중 전체 일괄 변경</span>
+        <label class="toggle-wrap">
+          <input type="checkbox" id="global-bulk-toggle" onchange="toggleGlobalBulk(this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div id="global-bulk-body" style="display:none;margin-top:10px">
+        <div class="bid-row">
+          <span class="bid-label">💰 모든 캠페인 운영중</span>
+          <div class="bid-input-wrap">
+            <input class="bid-val" id="global-bulk-val" type="number" placeholder="금액" min="70" step="10" inputmode="numeric" style="width:90px">
+            <span class="bid-unit">원</span>
+          </div>
+        </div>
+        <button class="apply-btn" style="margin-top:10px" id="global-bulk-btn" onclick="applyGlobalBulk()">✓ 전체 적용</button>
+      </div>
+    </div>
+
     <div class="section-hdr">
       <span class="section-label">캠페인</span>
       <button class="icon-btn" id="refBtn" onclick="loadCampaigns()">
@@ -856,25 +877,6 @@ async function toggleAccordion(id) {
       body.innerHTML = '<div style="padding:12px;text-align:center;font-size:12px;color:var(--dim)">광고그룹이 없습니다</div>';
     } else {
       body.innerHTML = `
-        <div class="bulk-inline">
-          <div class="bulk-inline-top">
-            <span style="font-size:12px;font-weight:800;color:var(--dim)">⚡ 운영중 일괄 변경</span>
-            <label class="toggle-wrap">
-              <input type="checkbox" onchange="toggleBulkInline('${id}',this.checked)">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="bulk-inline-body" id="bulk-body-${id}" style="display:none">
-            <div class="bid-row" style="margin-top:8px">
-              <span class="bid-label">💰 운영중 전체</span>
-              <div class="bid-input-wrap">
-                <input class="bid-val" id="bulk-val-${id}" type="number" placeholder="금액" min="70" step="10" inputmode="numeric" style="width:90px">
-                <span class="bid-unit">원</span>
-              </div>
-            </div>
-            <button class="apply-btn" style="margin-top:8px;padding:10px" id="bulk-btn-${id}" onclick="applyBulkInline('${id}')">✓ 전체 적용</button>
-          </div>
-        </div>
         ${groups.map(g => renderAgCard(g)).join('')}`;
       groups.forEach(g => renderPresetBtns(gId(g)));
     }
@@ -1165,6 +1167,53 @@ async function apiCallWithFields(method, path, fields) {
     throw new Error(`API ${res.status}: ${err.slice(0,120)}`);
   }
   return res.json();
+}
+
+// ════════════════════════════════════════════
+// GLOBAL BULK CHANGE (전체 캠페인 운영중 그룹)
+// ════════════════════════════════════════════
+function toggleGlobalBulk(on) {
+  document.getElementById('global-bulk-body').style.display = on ? 'block' : 'none';
+  if (on) document.getElementById('global-bulk-val').focus();
+}
+
+async function applyGlobalBulk() {
+  const bid = parseInt(document.getElementById('global-bulk-val').value);
+  if (!bid || bid < 70) { toast('70원 이상 입력하세요', 'err'); return; }
+
+  // 로드된 모든 광고그룹 중 운영중인 것만
+  const activeGroups = Object.entries(window._adgroupRaw || {})
+    .filter(([, g]) => gOn(g))
+    .map(([id, g]) => ({ id, g }));
+
+  if (!activeGroups.length) {
+    toast('먼저 캠페인을 펼쳐주세요', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('global-bulk-btn');
+  btn.disabled = true;
+  let done = 0, failed = 0;
+
+  for (const { id, g } of activeGroups) {
+    try {
+      if (!DEMO_MODE) {
+        const payload = Object.assign({}, g, { adGroupId: id, bidAmt: bid, pcBidAmt: bid });
+        await apiCall('PUT', `/ncc/adgroups/${id}`, payload);
+      } else { await delay(150); }
+      const inp = document.getElementById('bid-' + id);
+      if (inp) inp.value = bid;
+      const card = document.getElementById('ag-' + id);
+      if (card) { card.classList.add('saved'); setTimeout(() => card.classList.remove('saved'), 2000); }
+      done++;
+    } catch(e) { failed++; }
+    btn.textContent = `${done}/${activeGroups.length} 처리중...`;
+  }
+
+  btn.textContent = '✓ 전체 적용';
+  btn.disabled = false;
+  if (failed > 0) toast(`${done}개 완료, ${failed}개 실패`, 'err');
+  else toast(`✅ 운영중 ${done}개 그룹 ${bid.toLocaleString()}원 변경${DEMO_MODE?' (데모)':''}`);
 }
 
 // ════════════════════════════════════════════
