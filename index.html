@@ -386,6 +386,32 @@ body {
 .toggle-wrap input:checked + .toggle-slider { background: var(--green); }
 .toggle-wrap input:checked + .toggle-slider:before { transform: translateX(20px); }
 
+/* ── ACCORDION ── */
+.camp-accordion { margin-bottom: 10px; }
+.camp-header {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--s1); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 16px; cursor: pointer;
+  transition: all .2s; gap: 12px;
+}
+.camp-header.open { border-radius: var(--r) var(--r) 0 0; border-bottom-color: transparent; }
+.camp-header:active { background: var(--s2); }
+.camp-chevron { transition: transform .25s; color: var(--dim); flex-shrink:0; }
+.camp-chevron.open { transform: rotate(90deg); }
+.camp-body {
+  display: none; background: var(--s2);
+  border: 1px solid var(--border); border-top: none;
+  border-radius: 0 0 var(--r) var(--r); padding: 8px;
+}
+.camp-body.open { display: block; }
+
+.bulk-inline {
+  background: var(--bg); border: 1px solid rgba(0,200,83,.2);
+  border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+}
+.bulk-inline-top { display: flex; align-items: center; justify-content: space-between; margin-bottom:0; }
+.bulk-inline-body { margin-top: 10px; }
+
 /* demo notice */
 .notice {
   background: rgba(255,171,0,.08); border: 1px solid rgba(255,171,0,.2);
@@ -414,39 +440,6 @@ body {
 
 <!-- ═══════════════ CAMPAIGN SCREEN ═══════════════ -->
 <div class="scr on" id="scr-campaign">
-
-  <!-- Adgroup sub-view -->
-  <div id="v-ag" style="display:none">
-    <button class="back-btn" onclick="backToCampaigns()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
-      캠페인 목록으로
-    </button>
-    <div class="ag-title" id="ag-title"></div>
-    <div class="ag-sub" id="ag-sub"></div>
-
-    <!-- 일괄 변경 -->
-    <div class="bulk-bar" id="bulk-bar">
-      <div class="bulk-top">
-        <span class="bulk-label">⚡ 운영중 전체 일괄 변경</span>
-        <label class="toggle-wrap">
-          <input type="checkbox" id="bulk-toggle" onchange="toggleBulk(this.checked)">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <div class="bulk-body" id="bulk-body" style="display:none">
-        <div class="bid-row" style="margin-top:10px">
-          <span class="bid-label">💰 일괄 입찰가</span>
-          <div class="bid-input-wrap">
-            <input class="bid-input" id="bulk-input" type="number" placeholder="금액" min="70" step="10" inputmode="numeric" style="width:100px">
-            <span class="bid-unit">원</span>
-          </div>
-        </div>
-        <button class="apply-btn" style="margin-top:10px" onclick="applyBulk()">✓ 운영중 그룹 전체 적용</button>
-      </div>
-    </div>
-
-    <div id="ag-list"></div>
-  </div>
 
   <!-- Campaign list view -->
   <div id="v-camp">
@@ -788,10 +781,8 @@ function gBid(g)   { return g.bidAmt || g.bid || g.pcBidAmt || 70; }
 
 function renderCampaigns() {
   const active = campaigns.filter(c => cOn(c)).length;
-  const groups = campaigns.reduce((s,c) => s + (parseInt(cGroups(c))||0), 0);
   document.getElementById('s-total').textContent  = campaigns.length;
   document.getElementById('s-active').textContent = active;
-  if (document.getElementById('s-groups')) document.getElementById('s-groups').textContent = groups || '?';
 
   if (!campaigns.length) {
     document.getElementById('c-list').innerHTML = '<div class="empty"><div class="empty-ico">📭</div><div class="empty-text">캠페인이 없습니다</div></div>';
@@ -800,115 +791,162 @@ function renderCampaigns() {
 
   document.getElementById('c-list').innerHTML = campaigns.map(c => {
     const on = cOn(c);
+    const id = esc(cId(c));
+    const nm = esc(cName(c));
     return `
-    <div class="c-item" onclick="openCampaign('${esc(cId(c))}','${esc(cName(c))}')">
-      <div class="c-left">
-        <div class="c-name">${cName(c)}</div>
-        <div class="c-meta">
-          <span class="badge ${on?'badge-on':'badge-off'}">${on?'● 운영중':'■ 중지'}</span>
-          ${cGroups(c) !== '?' ? `<span class="c-groups">그룹 ${cGroups(c)}개</span>` : ''}
+    <div class="camp-accordion" id="acc-${id}">
+      <div class="camp-header" onclick="toggleAccordion('${id}')">
+        <div class="c-left">
+          <div class="c-name">${cName(c)}</div>
+          <div class="c-meta">
+            <span class="badge ${on?'badge-on':'badge-off'}">${on?'● 운영중':'■ 중지'}</span>
+          </div>
         </div>
+        <svg class="camp-chevron" id="chev-${id}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg>
       </div>
-      <div class="c-arrow">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M9 18l6-6-6-6"/></svg>
+      <div class="camp-body" id="body-${id}">
+        <div class="loader" style="padding:20px"><div class="spin-ring" style="width:24px;height:24px;border-width:2px"></div></div>
       </div>
     </div>`;
   }).join('');
 }
 
-// ════════════════════════════════════════════
-// OPEN CAMPAIGN → AD GROUPS
-// ════════════════════════════════════════════
-async function openCampaign(id, name) {
-  currentCampaign = id;
-  document.getElementById('v-camp').style.display = 'none';
-  document.getElementById('v-ag').style.display   = 'block';
-  document.getElementById('ag-title').textContent = name;
-  document.getElementById('ag-sub').textContent   = '광고그룹별 입찰가를 조정하세요';
-  // 일괄변경 초기화
-  const bt = document.getElementById('bulk-toggle');
-  if (bt) { bt.checked = false; toggleBulk(false); }
-  loader('ag-list');
+async function toggleAccordion(id) {
+  const header = document.querySelector(`#acc-${id} .camp-header`);
+  const body   = document.getElementById('body-' + id);
+  const chev   = document.getElementById('chev-' + id);
+  const isOpen = body.classList.contains('open');
+
+  // 닫기
+  if (isOpen) {
+    body.classList.remove('open');
+    header.classList.remove('open');
+    chev.classList.remove('open');
+    return;
+  }
+
+  // 열기
+  body.classList.add('open');
+  header.classList.add('open');
+  chev.classList.add('open');
+
+  if (body.dataset.loaded) return;
 
   try {
     let groups;
     if (DEMO_MODE) {
-      await delay(500);
+      await delay(400);
       groups = DEMO.adgroups[id] || [];
     } else {
-      // 파라미터 없이 전체 불러온 후 클라이언트 필터링
       const data = await apiCall('GET', '/ncc/adgroups');
-      const all = Array.isArray(data) ? data : (data.adGroups || data.adgroups || []);
-      if (all.length > 0) {
-        const sample = all[0];
-        // 캠페인ID 필드 자동 감지
-        // nccCampaignId 필드로 필터링
-        groups = all.filter(g => {
-          const c = g.nccCampaignId || g.campaignId || g.campaign_id || '';
-          return String(c) === String(id);
-        });
-        window._dbgSample = JSON.stringify(sample).slice(0, 200);
-      } else {
-        groups = [];
-      }
+      const all = Array.isArray(data) ? data : (data.adGroups || []);
+      groups = all.filter(g => {
+        const c = g.nccCampaignId || g.campaignId || '';
+        return String(c) === String(id);
+      });
     }
-    // 원본 데이터 저장 (PUT 시 전체 필드 전송용)
-    window._adgroupRaw = {};
-    groups.forEach(g => { window._adgroupRaw[gId(g)] = g; });
-
 
     groups.sort((a,b) => (gOn(b)?1:0) - (gOn(a)?1:0));
-    renderAdGroups(groups);
-    // 프리셋 버튼 렌더링
-    groups.forEach(g => renderPresetBtns(gId(g)));
-  } catch(e) {
-    document.getElementById('ag-list').innerHTML = `<div class="empty"><div class="empty-ico">⚠️</div><div class="empty-text">${e.message}</div></div>`;
-    toast(e.message, 'err');
-  }
-}
+    window._adgroupRaw = window._adgroupRaw || {};
+    groups.forEach(g => { window._adgroupRaw[gId(g)] = g; });
 
-function backToCampaigns() {
-  document.getElementById('v-camp').style.display = 'block';
-  document.getElementById('v-ag').style.display   = 'none';
-}
-
-// ════════════════════════════════════════════
-// RENDER AD GROUPS
-// ════════════════════════════════════════════
-function renderAdGroups(groups) {
-  if (!groups.length) {
-    document.getElementById('ag-list').innerHTML = '<div class="empty"><div class="empty-ico">📭</div><div class="empty-text">광고그룹이 없습니다</div></div>';
-    return;
-  }
-  document.getElementById('ag-list').innerHTML = groups.map(g => {
-    const on  = gOn(g);
-    const id  = gId(g);
-    const nm  = gName(g);
-    const bid = gBid(g);
-    return `
-    <div class="ag-item${on ? '' : ' paused'}" id="ag-${id}">
-      <div class="ag-hdr">
-        <div class="ag-name">${nm}</div>
-        <label class="toggle-wrap" onclick="event.stopPropagation()" title="${on?'운영중':'중지'}">
-          <input type="checkbox" ${on?'checked':''} onchange="toggleAdGroup('${id}','${esc(nm)}',this.checked)">
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-      <div class="bid-wrap">
-        <div class="bid-top">
-          <span class="bid-label">💰 입찰가</span>
-          <div class="bid-val-wrap">
-            <input class="bid-val" id="bid-${id}" type="number" value="${bid}" min="70" step="10" inputmode="numeric">
-            <span class="bid-unit">원</span>
+    if (!groups.length) {
+      body.innerHTML = '<div style="padding:12px;text-align:center;font-size:12px;color:var(--dim)">광고그룹이 없습니다</div>';
+    } else {
+      body.innerHTML = `
+        <div class="bulk-inline">
+          <div class="bulk-inline-top">
+            <span style="font-size:12px;font-weight:800;color:var(--dim)">⚡ 운영중 일괄 변경</span>
+            <label class="toggle-wrap">
+              <input type="checkbox" onchange="toggleBulkInline('${id}',this.checked)">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="bulk-inline-body" id="bulk-body-${id}" style="display:none">
+            <div class="bid-row" style="margin-top:8px">
+              <span class="bid-label">💰 운영중 전체</span>
+              <div class="bid-input-wrap">
+                <input class="bid-val" id="bulk-val-${id}" type="number" placeholder="금액" min="70" step="10" inputmode="numeric" style="width:90px">
+                <span class="bid-unit">원</span>
+              </div>
+            </div>
+            <button class="apply-btn" style="margin-top:8px;padding:10px" id="bulk-btn-${id}" onclick="applyBulkInline('${id}')">✓ 전체 적용</button>
           </div>
         </div>
-        <div class="bid-btns" id="presets-${id}"></div>
+        ${groups.map(g => renderAgCard(g)).join('')}`;
+      groups.forEach(g => renderPresetBtns(gId(g)));
+    }
+    body.dataset.loaded = '1';
+  } catch(e) {
+    body.innerHTML = `<div style="padding:12px;text-align:center;font-size:12px;color:var(--red)">${e.message}</div>`;
+  }
+}
+
+function toggleBulkInline(campId, on) {
+  document.getElementById('bulk-body-' + campId).style.display = on ? 'block' : 'none';
+  if (on) document.getElementById('bulk-val-' + campId).focus();
+}
+
+async function applyBulkInline(campId) {
+  const bid = parseInt(document.getElementById('bulk-val-' + campId).value);
+  if (!bid || bid < 70) { toast('70원 이상 입력하세요', 'err'); return; }
+
+  const activeGroups = Object.entries(window._adgroupRaw || {})
+    .filter(([, g]) => {
+      const c = g.nccCampaignId || g.campaignId || '';
+      return String(c) === String(campId) && gOn(g);
+    }).map(([gid, g]) => ({ id: gid, g }));
+
+  if (!activeGroups.length) { toast('운영중인 광고그룹이 없습니다', 'err'); return; }
+
+  const btn = document.getElementById('bulk-btn-' + campId);
+  btn.disabled = true;
+  let done = 0;
+  for (const { id, g } of activeGroups) {
+    try {
+      if (!DEMO_MODE) {
+        const payload = Object.assign({}, g, { adGroupId: id, bidAmt: bid, pcBidAmt: bid });
+        await apiCall('PUT', `/ncc/adgroups/${id}`, payload);
+      } else { await delay(200); }
+      const inp = document.getElementById('bid-' + id);
+      if (inp) inp.value = bid;
+      const card = document.getElementById('ag-' + id);
+      if (card) { card.classList.add('saved'); setTimeout(() => card.classList.remove('saved'), 2000); }
+      done++;
+    } catch(e) {}
+    btn.textContent = `${done}/${activeGroups.length} 처리중...`;
+  }
+  btn.textContent = '✓ 전체 적용';
+  btn.disabled = false;
+  toast(`✅ ${done}개 그룹 ${bid.toLocaleString()}원 변경${DEMO_MODE?' (데모)':''}`);
+}
+
+function renderAgCard(g) {
+  const on  = gOn(g);
+  const id  = gId(g);
+  const nm  = gName(g);
+  const bid = gBid(g);
+  return `
+  <div class="ag-item${on?'':' paused'}" id="ag-${id}" style="margin-bottom:6px">
+    <div class="ag-hdr">
+      <div class="ag-name">${nm}</div>
+      <label class="toggle-wrap" onclick="event.stopPropagation()">
+        <input type="checkbox" ${on?'checked':''} onchange="toggleAdGroup('${id}','${esc(nm)}',this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="bid-wrap">
+      <div class="bid-top">
+        <span class="bid-label">💰 입찰가</span>
+        <div class="bid-val-wrap">
+          <input class="bid-val" id="bid-${id}" type="number" value="${bid}" min="70" step="10" inputmode="numeric">
+          <span class="bid-unit">원</span>
+        </div>
       </div>
-      <button class="apply-btn" onclick="applyBid('${id}','${esc(nm)}')">
-        ✓ 입찰가 적용
-      </button>
-    </div>`;
-  }).join('');
+      <div class="bid-btns" id="presets-${id}"></div>
+    </div>
+    <button class="apply-btn" onclick="applyBid('${id}','${esc(nm)}')">✓ 입찰가 적용</button>
+  </div>`;
 }
 
 function adj(id, delta) {
@@ -1125,6 +1163,46 @@ async function apiCallWithFields(method, path, fields) {
     throw new Error(`API ${res.status}: ${err.slice(0,120)}`);
   }
   return res.json();
+}
+
+// ════════════════════════════════════════════
+// ADGROUP ON/OFF
+// ════════════════════════════════════════════
+async function toggleAdGroup(id, name, turnOn) {
+  const card = document.getElementById('ag-' + id);
+  if (card) { card.style.opacity = '.5'; card.style.pointerEvents = 'none'; }
+
+  try {
+    if (DEMO_MODE) {
+      await delay(600);
+    } else {
+      const raw = (window._adgroupRaw && window._adgroupRaw[id]) || {};
+      // 네이버 API: userLock 필드로 ON/OFF 제어
+      const payload = Object.assign({}, raw, {
+        adGroupId: id,
+        userLock: turnOn ? 'NONE' : 'AD_GROUP_PAUSE',
+      });
+      await apiCall('PUT', `/ncc/adgroups/${id}`, payload);
+    }
+
+    // 카드 상태 업데이트
+    if (card) {
+      card.classList.toggle('paused', !turnOn);
+      card.style.opacity = '1';
+      card.style.pointerEvents = 'auto';
+    }
+    // _adgroupRaw 업데이트
+    if (window._adgroupRaw && window._adgroupRaw[id]) {
+      window._adgroupRaw[id].userLock = turnOn ? 'NONE' : 'AD_GROUP_PAUSE';
+    }
+    toast(`${turnOn ? '✅ 운영중' : '⏸ 중지'}: ${name}`);
+  } catch(e) {
+    // 실패시 토글 원래대로
+    const chk = card ? card.querySelector('input[type=checkbox]') : null;
+    if (chk) chk.checked = !turnOn;
+    if (card) { card.style.opacity = '1'; card.style.pointerEvents = 'auto'; }
+    toast('변경 실패: ' + e.message, 'err');
+  }
 }
 
 // ════════════════════════════════════════════
