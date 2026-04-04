@@ -1219,43 +1219,6 @@ async function applyGlobalBulk() {
 // ════════════════════════════════════════════
 // ADGROUP ON/OFF
 // ════════════════════════════════════════════
-async function toggleAdGroup(id, name, turnOn) {
-  const card = document.getElementById('ag-' + id);
-  if (card) { card.style.opacity = '.5'; card.style.pointerEvents = 'none'; }
-
-  try {
-    if (DEMO_MODE) {
-      await delay(600);
-    } else {
-      const raw = (window._adgroupRaw && window._adgroupRaw[id]) || {};
-      // 네이버 API: userLock 필드로 ON/OFF 제어
-      const payload = Object.assign({}, raw, {
-        adGroupId: id,
-        userLock: turnOn ? 'NONE' : 'AD_GROUP_PAUSE',
-      });
-      await apiCall('PUT', `/ncc/adgroups/${id}`, payload);
-    }
-
-    // 카드 상태 업데이트
-    if (card) {
-      card.classList.toggle('paused', !turnOn);
-      card.style.opacity = '1';
-      card.style.pointerEvents = 'auto';
-    }
-    // _adgroupRaw 업데이트
-    if (window._adgroupRaw && window._adgroupRaw[id]) {
-      window._adgroupRaw[id].userLock = turnOn ? 'NONE' : 'AD_GROUP_PAUSE';
-    }
-    toast(`${turnOn ? '✅ 운영중' : '⏸ 중지'}: ${name}`);
-  } catch(e) {
-    // 실패시 토글 원래대로
-    const chk = card ? card.querySelector('input[type=checkbox]') : null;
-    if (chk) chk.checked = !turnOn;
-    if (card) { card.style.opacity = '1'; card.style.pointerEvents = 'auto'; }
-    toast('변경 실패: ' + e.message, 'err');
-  }
-}
-
 // ════════════════════════════════════════════
 // ADGROUP ON/OFF
 // ════════════════════════════════════════════
@@ -1268,12 +1231,12 @@ async function toggleAdGroup(id, name, turnOn) {
       await delay(600);
     } else {
       const raw = (window._adgroupRaw && window._adgroupRaw[id]) || {};
-      // 네이버 API: userLock 필드로 ON/OFF 제어
-      const payload = Object.assign({}, raw, {
-        adGroupId: id,
-        userLock: turnOn ? 'NONE' : 'AD_GROUP_PAUSE',
-      });
-      await apiCall('PUT', `/ncc/adgroups/${id}`, payload);
+      // 네이버 API: pause 엔드포인트로 ON/OFF 제어
+      if (turnOn) {
+        await apiCall('PUT', `/ncc/adgroups/${id}/resume`, { ids: [id] });
+      } else {
+        await apiCall('PUT', `/ncc/adgroups/${id}/pause`, { ids: [id] });
+      }
     }
 
     // 카드 상태 업데이트
@@ -1285,6 +1248,7 @@ async function toggleAdGroup(id, name, turnOn) {
     // _adgroupRaw 업데이트
     if (window._adgroupRaw && window._adgroupRaw[id]) {
       window._adgroupRaw[id].userLock = turnOn ? 'NONE' : 'AD_GROUP_PAUSE';
+      window._adgroupRaw[id].status = turnOn ? 'ELIGIBLE' : 'PAUSED';
     }
     toast(`${turnOn ? '✅ 운영중' : '⏸ 중지'}: ${name}`);
   } catch(e) {
